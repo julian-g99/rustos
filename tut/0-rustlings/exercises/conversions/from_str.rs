@@ -10,7 +10,6 @@ struct Person {
     age: usize,
 }
 
-// I AM NOT DONE
 // Steps:
 // 1. Split the given string on the commas present in it
 // 2. Extract the first element from the split operation and use it as the name
@@ -21,6 +20,16 @@ struct Person {
 impl FromStr for Person {
     type Err = String;
     fn from_str(s: &str) -> Result<Person, Self::Err> {
+        let mut split_iter = s.split(",");
+        let name = split_iter.next().unwrap();
+        let age = match split_iter.next() {
+            None => return Err("wrong format".to_string()),
+            Some(age) => age.parse()
+        };
+        match age {
+            Ok(age) => Ok(Person{name: name.to_string(), age: age}),
+            Err(e) => Err("no valid age found".to_string())
+        }
     }
 }
 
