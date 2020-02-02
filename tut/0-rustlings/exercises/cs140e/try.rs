@@ -6,9 +6,10 @@ struct ErrorB;
 
 enum Error {
     A(ErrorA),
-    B(ErrorB),
+    B(ErrorB)
 }
 
+<<<<<<< HEAD
 impl std::fmt::Debug for ErrorA {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "oh no")
@@ -23,6 +24,8 @@ impl std::fmt::Debug for ErrorB {
 
 // What traits does `Error` need to implement?
 
+=======
+>>>>>>> skeleton/lab2
 fn do_a() -> Result<u16, ErrorA> {
     Err(ErrorA)
 }
@@ -35,4 +38,4 @@ fn do_both() -> Result<(u16, u32), Error> {
     Ok((do_a().unwrap(), do_b().unwrap()))
 }
 
-fn main() {}
+fn main() { }
