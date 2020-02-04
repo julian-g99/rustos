@@ -182,7 +182,17 @@ impl<T: io::Read + io::Write> Xmodem<T> {
     /// byte was not `byte`, if the read byte was `CAN` and `byte` is not `CAN`,
     /// or if writing the `CAN` byte failed on byte mismatch.
     fn expect_byte_or_cancel(&mut self, byte: u8, expected: &'static str) -> io::Result<u8> {
-        unimplemented!()
+        let read_byte = self.read_byte(false)?;
+        if read_byte == byte {
+            Ok(read_byte)
+        } else {
+            self.write_byte(CAN)?; //TODO: is this right?
+            if read_byte != CAN {
+                ioerr!(InvalidData, expected)
+            } else {
+                ioerr!(ConnectionAborted, "")
+            }
+        }
     }
 
     /// Reads a single byte from the inner I/O stream and compares it to `byte`.
@@ -197,7 +207,20 @@ impl<T: io::Read + io::Write> Xmodem<T> {
     /// of `ConnectionAborted` is returned. Otherwise, the error kind is
     /// `InvalidData`.
     fn expect_byte(&mut self, byte: u8, expected: &'static str) -> io::Result<u8> {
-        unimplemented!()
+        let mut buf = [0u8; 1];
+        self.inner.read_exact(&mut buf)?;
+        if buf[0] != byte {
+            //Err(io::ErrorKind::InvalidData(expected))
+            //io::Error::new(io::ErrorKind::InvalidData, expected)
+            ioerr!(InvalidData, expected)
+        } else if byte != CAN && buf[0] == CAN {
+            //Err(io::ErrorKind::ConnectionAborted)
+            //io::Error::new(io::ErrorKind::ConnectionAborted)
+            ioerr!(ConnectionAborted, "")
+        } else {
+            Ok(buf[0])
+        }
+
     }
 
     /// Reads (downloads) a single packet from the inner stream using the XMODEM
@@ -224,7 +247,35 @@ impl<T: io::Read + io::Write> Xmodem<T> {
     ///
     /// An error of kind `UnexpectedEof` is returned if `buf.len() < 128`.
     pub fn read_packet(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        unimplemented!()
+        //TODO: start of transmision stuff
+        
+        //TODO: assuming here that we are the receiver, but what if we're the sender (sender also
+        //receives packets)
+        let first_byte = self.read_byte(true)?;
+        if first_byte == EOT {
+            //performs end of transmission
+            self.write_byte(NAK); //FIXME: does this actually send a byte?
+            //TODO: wait for the second EOT byte
+            self.write_byte(ACK);
+            Ok(0)
+        } else if first_byte == SOH {
+            self.expect_byte(self.packet + 1, "packet number mismatch");
+            for i in 0..128 {
+                buf[i] = self.read_byte(true)?;
+            }
+            match self.expect_byte(get_checksum(buf), "checksum fails") {
+                Ok(n) => {
+                    self.write_byte(ACK);
+                    Ok(buf.len())
+                },
+                Err(e) => {
+                    ioerr!(Interrupted, "checksum not equal")
+                }
+            }
+        } else {
+            //neither SOH nor EOT
+            ioerr!(InvalidData, "first byte is neither SOH nor EOT")
+        }
     }
 
     /// Sends (uploads) a single packet to the inner stream using the XMODEM

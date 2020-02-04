@@ -1,0 +1,1 @@
+Unique is wrapper for all the other wrapper types whose generic is `T: Sync`, which is a type for which it's sfae to sahre references between thread. This type makes sure that there is no way to have undefined behaviors such as data races when passing references between threads.

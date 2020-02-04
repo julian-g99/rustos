@@ -18,6 +18,23 @@ fn assignment_text_example() {
 }
 
 #[test]
+fn test_slice() {
+    let mut storage = [0u8; 1024];
+    let mut vec = StackVec::new(&mut storage);
+
+    for i in 0..10 {
+        vec.push(i * i).expect("can push 1024 times");
+    }
+
+    let slice = &[0, 1, 4, 9, 16, 25, 36, 49, 64, 81];
+    // assert_eq!(vec.into_slice(), slice);
+    assert_eq!(vec.into_slice().iter().count(), 10);
+    // assert_eq!(vec.as_slice().iter().count(), 10);
+    // assert_eq!(vec.iter().count(), 10);
+    //assert_eq!(10, vec.into_slice().iter().count());
+}
+
+#[test]
 fn len_and_capacity_ok() {
     let mut storage = [0u8; 1024];
     let stack_vec = StackVec::new(&mut storage);

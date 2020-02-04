@@ -1,0 +1,1 @@
+I would have to write to GPFSEL2, GPSET0, and GPCLR0. The pin that maps to GPIO27 on the pi is physical pin 13.
