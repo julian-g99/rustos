@@ -252,14 +252,30 @@ impl<T: io::Read + io::Write> Xmodem<T> {
         //TODO: assuming here that we are the receiver, but what if we're the sender (sender also
         //receives packets)
         let first_byte = self.read_byte(true)?;
+        //let packet_number = self.read_byte(true)?;
+        //let packet_number_complement = self.read_byte(true)?;
         if first_byte == EOT {
             //performs end of transmission
-            self.write_byte(NAK); //FIXME: does this actually send a byte?
-            //TODO: wait for the second EOT byte
-            self.write_byte(ACK);
-            Ok(0)
+            self.write_byte(NAK); //CHECK: does this actually send a byte?
+            //'wait: loop { //CHECK: is this the right way to block?
+                ////check for second EOT
+                //if self.read_byte(false)? == EOT {
+                    //break 'wait;
+                //}
+            //}
+            match self.expect_byte(EOT, "second EOT not sent") {
+                Ok(n) => {
+                    self.write_byte(ACK);
+                    Ok(0)
+                },
+                Err(e) => ioerr!(InvalidData, "second EOT not sent")
+            }
         } else if first_byte == SOH {
-            self.expect_byte(self.packet + 1, "packet number mismatch");
+            self.expect_byte_or_cancel(self.packet + 1, "packet number mismatch");
+            self.expect_byte_or_cancel(255 - (self.packet + 1), "packet number 1's complement match error");
+            if packet_number != self.packet + 1 || packet_number_complement != 255 - (self.packet + 1) {
+                return ioerr!(InvalidData, "packet number doesn't match");
+            }
             for i in 0..128 {
                 buf[i] = self.read_byte(true)?;
             }
@@ -309,7 +325,55 @@ impl<T: io::Read + io::Write> Xmodem<T> {
     ///
     /// An error of kind `Interrupted` is returned if a packet checksum fails.
     pub fn write_packet(&mut self, buf: &[u8]) -> io::Result<usize> {
-        unimplemented!()
+        if buf.len() == 0 {
+            self.write_byte(EOT);
+            (self.progress)(Progress::Waiting);
+            match self.expect_byte(NAK, "NAK not sent by receiver") {
+                Err(e) => ioerr!(InvalidData, "NAK not sent by the receiver after EOT"),
+                Ok(n) => {
+                    self.write_byte(EOT);
+                    match self.expect_byte(ACK, "ACK not sent by receiver") {
+                        Err(e) => ioerr!(InvalidData, "ACK not sent by receiver after second EOT"),
+                        Ok(n) => Ok(0)
+                    }
+                }
+            }
+        } else {
+            if (buf.len() < 128) {
+                return ioerr!(UnexpectedEof, "packet length isn't 128 or 0");
+            }
+            for _ in 0..10 {
+                self.write_byte(SOH);
+                self.write_byte(self.packet);
+                self.write_byte(255 - self.packet);
+                self.packet += 1;
+                let mut num_bytes = 0;
+                for i in 0..128 {
+                    if i < buf.len() {
+                        self.write_byte(buf[i]);
+                        num_bytes += 1;
+                    } else {
+                        self.write_byte(0);
+                    }
+                }
+                self.write_byte(get_checksum(buf));
+                match self.read_byte(true)? {
+                    NAK => {
+                        continue;
+                    },
+                    ACK => {
+                        return Ok(num_bytes);
+                    },
+                    _ => {
+                        self.write_byte(CAN);
+                        return ioerr!(InvalidData, "response to complete packet isn't ACK or NAK");
+                    }
+                }
+            }
+            //if it gets here, should have failed 10 times
+            self.write_byte(CAN);
+            ioerr!(Other, "failed more than 10 times")
+        }
     }
 
     /// Flush this output stream, ensuring that all intermediately buffered
