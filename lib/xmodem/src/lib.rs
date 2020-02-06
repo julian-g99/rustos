@@ -209,14 +209,10 @@ impl<T: io::Read + io::Write> Xmodem<T> {
     fn expect_byte(&mut self, byte: u8, expected: &'static str) -> io::Result<u8> {
         let mut buf = [0u8; 1];
         self.inner.read_exact(&mut buf)?;
-        if buf[0] != byte {
-            //Err(io::ErrorKind::InvalidData(expected))
-            //io::Error::new(io::ErrorKind::InvalidData, expected)
-            ioerr!(InvalidData, expected)
-        } else if byte != CAN && buf[0] == CAN {
-            //Err(io::ErrorKind::ConnectionAborted)
-            //io::Error::new(io::ErrorKind::ConnectionAborted)
+        if byte != CAN && buf[0] == CAN {
             ioerr!(ConnectionAborted, "")
+        } else if  buf[0] != byte{
+            ioerr!(InvalidData, expected)
         } else {
             Ok(buf[0])
         }
@@ -247,16 +243,21 @@ impl<T: io::Read + io::Write> Xmodem<T> {
     ///
     /// An error of kind `UnexpectedEof` is returned if `buf.len() < 128`.
     pub fn read_packet(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        if buf.len() < 128 {
+            return ioerr!(UnexpectedEof, "Buffer length less than 128");
+        }
         //TODO: start of transmision stuff
+        if self.started == false {
+            self.write_byte(NAK)?;
+            self.started = true;
+        }
         
         //TODO: assuming here that we are the receiver, but what if we're the sender (sender also
         //receives packets)
         let first_byte = self.read_byte(true)?;
-        //let packet_number = self.read_byte(true)?;
-        //let packet_number_complement = self.read_byte(true)?;
         if first_byte == EOT {
             //performs end of transmission
-            self.write_byte(NAK); //CHECK: does this actually send a byte?
+            self.write_byte(NAK)?; //CHECK: does this actually send a byte?
             //'wait: loop { //CHECK: is this the right way to block?
                 ////check for second EOT
                 //if self.read_byte(false)? == EOT {
@@ -264,27 +265,28 @@ impl<T: io::Read + io::Write> Xmodem<T> {
                 //}
             //}
             match self.expect_byte(EOT, "second EOT not sent") {
-                Ok(n) => {
-                    self.write_byte(ACK);
-                    Ok(0)
+                Ok(_n) => {
+                    self.write_byte(ACK)?;
+                    Ok(0) //CHECK: is this the right number to return?
                 },
-                Err(e) => ioerr!(InvalidData, "second EOT not sent")
+                Err(_e) => ioerr!(InvalidData, "second EOT not sent")
             }
         } else if first_byte == SOH {
-            self.expect_byte_or_cancel(self.packet + 1, "packet number mismatch");
-            self.expect_byte_or_cancel(255 - (self.packet + 1), "packet number 1's complement match error");
-            if packet_number != self.packet + 1 || packet_number_complement != 255 - (self.packet + 1) {
-                return ioerr!(InvalidData, "packet number doesn't match");
-            }
+            self.expect_byte_or_cancel(self.packet, "packet number mismatch")?;
+            self.expect_byte_or_cancel(255 - self.packet, "packet number 1's complement match error")?;
+            //if packet_number != self.packet + 1 || packet_number_complement != 255 - (self.packet + 1) {
+                //return ioerr!(InvalidData, "packet number doesn't match");
+            //}
             for i in 0..128 {
-                buf[i] = self.read_byte(true)?;
+                buf[i] = self.read_byte(false)?;
             }
             match self.expect_byte(get_checksum(buf), "checksum fails") {
-                Ok(n) => {
-                    self.write_byte(ACK);
+                Ok(_n) => {
+                    self.write_byte(ACK)?;
+                    self.packet += 1;
                     Ok(buf.len())
                 },
-                Err(e) => {
+                Err(_e) => {
                     ioerr!(Interrupted, "checksum not equal")
                 }
             }
@@ -325,54 +327,57 @@ impl<T: io::Read + io::Write> Xmodem<T> {
     ///
     /// An error of kind `Interrupted` is returned if a packet checksum fails.
     pub fn write_packet(&mut self, buf: &[u8]) -> io::Result<usize> {
+        //start of transmission
+        if self.started == false {
+            self.expect_byte_or_cancel(NAK, "expected NAK for first byte of transmission")?;
+            self.started = true;
+        }
         if buf.len() == 0 {
-            self.write_byte(EOT);
+            self.write_byte(EOT)?;
             (self.progress)(Progress::Waiting);
             match self.expect_byte(NAK, "NAK not sent by receiver") {
-                Err(e) => ioerr!(InvalidData, "NAK not sent by the receiver after EOT"),
-                Ok(n) => {
-                    self.write_byte(EOT);
+                Err(_e) => ioerr!(InvalidData, "NAK not sent by the receiver after EOT"),
+                Ok(_n) => {
+                    self.write_byte(EOT)?;
                     match self.expect_byte(ACK, "ACK not sent by receiver") {
-                        Err(e) => ioerr!(InvalidData, "ACK not sent by receiver after second EOT"),
-                        Ok(n) => Ok(0)
+                        Err(_e) => ioerr!(InvalidData, "ACK not sent by receiver after second EOT"),
+                        Ok(_n) => Ok(2) //TODO: what do i do here?
                     }
                 }
             }
         } else {
-            if (buf.len() < 128) {
+            if buf.len() < 128 {
                 return ioerr!(UnexpectedEof, "packet length isn't 128 or 0");
             }
-            for _ in 0..10 {
-                self.write_byte(SOH);
-                self.write_byte(self.packet);
-                self.write_byte(255 - self.packet);
-                self.packet += 1;
-                let mut num_bytes = 0;
-                for i in 0..128 {
-                    if i < buf.len() {
-                        self.write_byte(buf[i]);
-                        num_bytes += 1;
-                    } else {
-                        self.write_byte(0);
-                    }
-                }
-                self.write_byte(get_checksum(buf));
-                match self.read_byte(true)? {
-                    NAK => {
-                        continue;
-                    },
-                    ACK => {
-                        return Ok(num_bytes);
-                    },
-                    _ => {
-                        self.write_byte(CAN);
-                        return ioerr!(InvalidData, "response to complete packet isn't ACK or NAK");
-                    }
+            let mut num_bytes = 0;
+            self.write_byte(SOH)?;
+            self.write_byte(self.packet)?;
+            self.write_byte(255 - self.packet)?;
+            num_bytes += 3;
+            for i in 0..128 {
+                if i < buf.len() {
+                    self.write_byte(buf[i])?;
+                    num_bytes += 1;
+                } else {
+                    self.write_byte(0)?;
+                    num_bytes += 1;
                 }
             }
-            //if it gets here, should have failed 10 times
-            self.write_byte(CAN);
-            ioerr!(Other, "failed more than 10 times")
+            self.write_byte(get_checksum(buf))?;
+            num_bytes += 1;
+            match self.read_byte(true)? {
+                NAK => {
+                    return ioerr!(Interrupted, "check failed")
+                },
+                ACK => {
+                    self.packet += 1;
+                    return Ok(num_bytes);
+                },
+                _ => {
+                    self.write_byte(CAN)?;
+                    return ioerr!(InvalidData, "response to complete packet isn't ACK or NAK");
+                }
+            }
         }
     }
 

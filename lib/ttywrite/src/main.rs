@@ -49,9 +49,35 @@ struct Opt {
 fn main() {
     use std::fs::File;
     use std::io::{self, BufReader};
+    use std::io::Read;
+    use std::io::Write;
 
     let opt = Opt::from_args();
     let mut port = serial::open(&opt.tty_path).expect("path points to invalid TTY");
 
     // FIXME: Implement the `ttywrite` utility.
+    let mut buf = String::new();
+    match &opt.input {
+        Some(fp) => {
+            let mut file = File::open(&fp).expect("Input file fails to open");
+            file.read_to_string(&mut buf).expect("Input file cannot be read");
+        },
+        None => {
+            let stdin = io::stdin();
+            let mut handle = stdin.lock();
+            handle.read_to_string(&mut buf).expect("Cannot read from stdin");
+        }
+    }
+
+    if opt.raw {
+        //TODO: raw transmission
+        port.write_all(buf.as_bytes()).expect("Raw write failed");
+        println!("Wrote {} bytes to output using raw", buf.as_bytes().len());
+    } else {
+        let progress_fn = |progress| {
+            println!("Progress: {:?}", progress);
+        };
+        let num_bytes = Xmodem::transmit_with_progress(buf.as_bytes(), port, progress_fn).expect("Xmodem tranmission failed");
+        println!("Wrote {} bytes to output using xmodem", num_bytes);
+    }
 }
