@@ -28,6 +28,18 @@ enum LsrStatus {
 #[allow(non_snake_case)]
 struct Registers {
     // FIXME: Declare the "MU" registers from page 8.
+    // FIXME: change the types to be minimal
+    IO: Volatile<u8>,
+    IER: Volatile<u8>,
+    IIR: Volatile<u8>,
+    LCR: Volatile<u8>,
+    MCR: Volatile<u8>,
+    LSR: Volatile<u8>,
+    MSR: Volatile<u8>,
+    SCRATCH: Volatile<u8>,
+    CNTL: Volatile<u8>,
+    STAT: Volatile<u32>,
+    BAUD: Volatile<u16>,
 }
 
 /// The Raspberry Pi's "mini UART".
@@ -52,25 +64,40 @@ impl MiniUart {
         };
 
         // FIXME: Implement remaining mini UART initialization.
-        unimplemented!()
+        registers.LCR.write(0b011);
+        registers.CNTL.write(0b011);
+        registers.BAUD.write(270);
+        let gpio15 = Gpio::new(15);
+        gpio15.into_alt(Function::Alt5);
+        let gpio14 = Gpio::new(14);
+        gpio14.into_alt(Function::Alt5);
+
+        MiniUart{registers: registers, timeout: None}
     }
 
     /// Set the read timeout to `t` duration.
     pub fn set_read_timeout(&mut self, t: Duration) {
-        unimplemented!()
+        self.timeout = Some(t);
     }
 
     /// Write the byte `byte`. This method blocks until there is space available
     /// in the output FIFO.
     pub fn write_byte(&mut self, byte: u8) {
-        unimplemented!()
+        loop {
+            //testing if the 6th bit of LSR is set
+            if self.registers.LSR.read() & 0b01000000 != 0 {
+                //TODO: write
+                self.registers.IO.write(byte);
+                break;
+            }
+        }
     }
 
     /// Returns `true` if there is at least one byte ready to be read. If this
     /// method returns `true`, a subsequent call to `read_byte` is guaranteed to
     /// return immediately. This method does not block.
     pub fn has_byte(&self) -> bool {
-        unimplemented!()
+        self.registers.LSR.read() & 1 != 0
     }
 
     /// Blocks until there is a byte ready to read. If a read timeout is set,
@@ -82,17 +109,57 @@ impl MiniUart {
     /// returns `Ok(())`, a subsequent call to `read_byte` is guaranteed to
     /// return immediately.
     pub fn wait_for_byte(&self) -> Result<(), ()> {
-        unimplemented!()
+        match self.timeout {
+            Some(t) => {
+                let time_stop = timer::current_time() + t;
+                loop {
+                    if timer::current_time() < time_stop {
+                        if self.has_byte() {
+                            return Ok(());
+                        }
+                    } else {
+                        return Err(());
+                    }
+                }
+            },
+            None => {
+                loop {
+                    if self.has_byte() {
+                        return Ok(());
+                    }
+                }
+            }
+        }
     }
 
     /// Reads a byte. Blocks indefinitely until a byte is ready to be read.
     pub fn read_byte(&mut self) -> u8 {
-        unimplemented!()
+        loop {
+            if self.has_byte() {
+                return self.registers.IO.read();
+            }
+        }
     }
 }
 
 // FIXME: Implement `fmt::Write` for `MiniUart`. A b'\r' byte should be written
 // before writing any b'\n' byte.
+impl fmt::Write for MiniUart {
+    fn write_str(&mut self, s: &str) -> fmt::Result {
+        for b in s.as_bytes() {
+            match b {
+                b if *b == '\n' as u8 => {
+                    self.write_byte('\r' as u8);
+                    self.write_byte(*b);
+                },
+                _ => {
+                    self.write_byte(*b);
+                }
+            }
+        }
+        Ok(())
+    }
+}
 
 mod uart_io {
     use super::io;
@@ -108,4 +175,24 @@ mod uart_io {
     //
     // The `io::Write::write()` method must write all of the requested bytes
     // before returning.
+    impl io::Read for MiniUart {
+        //TODO: implement this. also how do i know if there are more than one byte to read?
+        fn read(&mut self, buf: &mut [u8]) -> Result<usize, io::Error> {
+            let mut size: usize = 0;
+            match self.wait_for_byte() {
+                Err(_) => return Err(io::Error::new(io::ErrorKind::TimedOut, "Read out of time")),
+                Ok(_) =>{
+                    loop {
+                        if self.has_byte() {
+                            buf[size] = self.read_byte();
+                            size += 1;
+                        } else {
+                            break;
+                        }
+                    }
+                }
+            }
+            return Ok(size);
+        }
+    }
 }
