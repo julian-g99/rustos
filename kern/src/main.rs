@@ -57,7 +57,8 @@ unsafe fn kmain() -> ! {
             //uart.write_byte(read_byte);
             //uart.write_str("->");
         //}
-        let read_byte = uart.read_byte();
-        uart.write_byte(read_byte);
+        //let read_byte = uart.read_byte();
+        //uart.write_byte(read_byte);
+        kprintln!("hellowo woworld");
     }
 }

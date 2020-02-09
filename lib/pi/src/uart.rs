@@ -214,4 +214,19 @@ mod uart_io {
             return Ok(size);
         }
     }
+
+    impl io::Write for MiniUart {
+        fn write(&mut self, buf: &[u8]) -> Result<usize, io::Error> {
+            let mut size: usize = 0;
+            for i in 0..buf.len() {
+                self.write_byte(buf[i]);
+                size += 1;
+            }
+            Ok(size)
+        }
+
+        fn flush(&mut self) -> Result<(), io::Error> {
+            Ok(()) //CHECK: this should be ok because we block until everything is written?
+        }
+    }
 }
