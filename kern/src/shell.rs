@@ -37,12 +37,30 @@ impl<'a> Command<'a> {
 
     /// Returns this command's path. This is equivalent to the first argument.
     fn path(&self) -> &str {
-        unimplemented!()
+        self.args[0]
     }
 }
 
 /// Starts a shell using `prefix` as the prefix for each line. This function
 /// returns if the `exit` command is called.
 pub fn shell(prefix: &str) -> ! {
-    unimplemented!()
+    loop {
+        kprint!("{}", prefix);
+        let mut buffer = [0u8; 512];
+        let mut console = CONSOLE.lock();
+        let mut index = 0;
+        loop {
+            let read_byte = console.read_byte();
+            buffer[index] = read_byte;
+            index += 1;
+            if read_byte == '\r' as u8 || read_byte == '\n' as u8 {
+                kprintln!();
+            } else {
+                console.write_byte(read_byte);
+            }
+        }
+        let buffer = [""; 64];
+        let command: Command;
+        kprintln!("unknown command: {}", command.path());
+    }
 }

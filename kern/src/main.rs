@@ -51,12 +51,6 @@ unsafe fn kmain() -> ! {
     
     let mut uart = MiniUart::new();
     loop {
-        //uart.write_byte('a' as u8);
-        //if (uart.has_byte()) {
-            //let read_byte = uart.read_byte();
-            //uart.write_byte(read_byte);
-            //uart.write_str("->");
-        //}
         //let read_byte = uart.read_byte();
         //uart.write_byte(read_byte);
         kprintln!("hellowo woworld");
