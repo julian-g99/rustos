@@ -105,7 +105,8 @@ impl Gpio<Uninitialized> {
     pub fn into_alt(self, function: Function) -> Gpio<Alt> {
         let n = self.pin as usize / 10;
         let one_digit = self.pin % 10;
-        self.registers.FSEL[n].write((function as u32) << (one_digit * 3));
+        //self.registers.FSEL[n].write((function as u32) << (one_digit * 3));
+        self.registers.FSEL[n].or_mask((function as u32) << (one_digit * 3));
         self.transition()
     }
 

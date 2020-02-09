@@ -39,15 +39,15 @@ struct Registers {
     _r3: [Reserved<u8>; 3],
     MCR: Volatile<u8>,
     _r4: [Reserved<u8>; 3],
-    LSR: Volatile<u8>,
+    LSR: ReadVolatile<u8>,
     _r5: [Reserved<u8>; 3],
-    MSR: Volatile<u8>,
+    MSR: ReadVolatile<u8>,
     _r6: [Reserved<u8>; 3],
     SCRATCH: Volatile<u8>,
     _r7: [Reserved<u8>; 3],
     CNTL: Volatile<u8>,
     _r8: [Reserved<u8>; 3],
-    STAT: Volatile<u32>,
+    STAT: ReadVolatile<u32>,
     BAUD: Volatile<u16>,
     _r9: [Reserved<u8>; 2],
 }
@@ -74,13 +74,15 @@ impl MiniUart {
         };
 
         // FIXME: Implement remaining mini UART initialization.
-        registers.LCR.write(0b011);
+        //registers.LCR.write(0b011);
+        registers.LCR.or_mask(0b011);
         registers.BAUD.write(270);
         let gpio15 = Gpio::new(15);
         gpio15.into_alt(Function::Alt5);
         let gpio14 = Gpio::new(14);
         gpio14.into_alt(Function::Alt5);
-        registers.CNTL.write(0b011);
+        //registers.CNTL.write(0b011);
+        registers.CNTL.or_mask(0b011);
 
         MiniUart{registers: registers, timeout: None}
     }
@@ -94,8 +96,8 @@ impl MiniUart {
     /// in the output FIFO.
     pub fn write_byte(&mut self, byte: u8) {
         loop {
-            //testing if the 6th bit of LSR is set
-            if self.registers.LSR.read() & 0b01000000 != 0 {
+            //testing if the 5th bit of LSR is set
+            if self.registers.LSR.has_mask(LsrStatus::TxAvailable as u8) {
                 //TODO: write
                 self.registers.IO.write(byte);
                 break;
@@ -107,7 +109,8 @@ impl MiniUart {
     /// method returns `true`, a subsequent call to `read_byte` is guaranteed to
     /// return immediately. This method does not block.
     pub fn has_byte(&self) -> bool {
-        self.registers.LSR.read() & 0b01 != 0
+        //self.registers.LSR.read() & 0b01 != 0
+        self.registers.LSR.has_mask(LsrStatus::DataReady as u8)
     }
 
     /// Blocks until there is a byte ready to read. If a read timeout is set,

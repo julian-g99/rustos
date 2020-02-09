@@ -34,7 +34,7 @@ use core::fmt::Write;
 
 unsafe fn kmain() -> ! {
     // FIXME: Start the shell.
-    //let duration = Duration::from_millis(1000);
+    let duration = Duration::from_millis(1000);
      ////getting the gpio
     //let mut pin_16 = Gpio::new(16).into_output();
     
@@ -51,9 +51,13 @@ unsafe fn kmain() -> ! {
     
     let mut uart = MiniUart::new();
     loop {
-        if (uart.has_byte()) {
-            let read_byte = uart.read_byte();
-            uart.write_byte(read_byte);
-        }
+        //uart.write_byte('a' as u8);
+        //if (uart.has_byte()) {
+            //let read_byte = uart.read_byte();
+            //uart.write_byte(read_byte);
+            //uart.write_str("->");
+        //}
+        let read_byte = uart.read_byte();
+        uart.write_byte(read_byte);
     }
 }
