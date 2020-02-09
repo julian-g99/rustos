@@ -60,7 +60,7 @@ impl io::Write for Console {
 
 impl fmt::Write for Console {
     fn write_str(&mut self, s: &str) -> fmt::Result {
-        unimplemented!()
+        self.inner().write_str(s)
     }
 }
 
