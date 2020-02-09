@@ -1,4 +1,6 @@
 use stack_vec::StackVec;
+use core::str::from_utf8;
+use core::fmt::Write;
 
 use crate::console::{kprint, kprintln, CONSOLE};
 
@@ -47,20 +49,46 @@ pub fn shell(prefix: &str) -> ! {
     loop {
         kprint!("{}", prefix);
         let mut buffer = [0u8; 512];
+        let mut input = StackVec::new(&mut buffer);
         let mut console = CONSOLE.lock();
-        let mut index = 0;
         loop {
             let read_byte = console.read_byte();
-            buffer[index] = read_byte;
-            index += 1;
+            //buffer[index] = read_byte;
+            //index += 1;
             if read_byte == '\r' as u8 || read_byte == '\n' as u8 {
                 kprintln!();
+                break;
+            } else if read_byte == 8 || read_byte == 127 {
+                if input.len() > 0 {
+                    input.pop();
+                    console.write_byte(8);
+                    console.write_byte(b' ');
+                    console.write_byte(8);
+                }
             } else {
+                input.push(read_byte);
                 console.write_byte(read_byte);
             }
         }
-        let buffer = [""; 64];
-        let command: Command;
-        kprintln!("unknown command: {}", command.path());
+        let mut stack_backend = [""; 64];
+        let command = Command::parse(from_utf8(input.as_slice()).unwrap(), &mut stack_backend);
+        match command {
+            Ok(c) => {
+                if c.path() == "echo" {
+                    for (i, v) in c.args.iter().enumerate() {
+                        if i != 0 {
+                            console.write_str(v);
+                            console.write_str(" ");
+                        }
+                    }
+                    kprintln!();
+                } else {
+                    kprintln!("unknown command: {}", c.path());
+                }
+            },
+            Err(_) => {
+                kprintln!("uh oh something went wrong");
+            }
+        }
     }
 }

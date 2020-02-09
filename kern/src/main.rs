@@ -49,10 +49,13 @@ unsafe fn kmain() -> ! {
     //}
     
     
-    let mut uart = MiniUart::new();
+    spin_sleep(duration);
     loop {
-        //let read_byte = uart.read_byte();
-        //uart.write_byte(read_byte);
-        kprintln!("hellowo woworld");
+        shell::shell("> ")
     }
+    //let mut uart = MiniUart::new();
+    //loop {
+        ////let read_byte = uart.read_byte();
+        ////uart.write_byte(read_byte);
+    //}
 }
