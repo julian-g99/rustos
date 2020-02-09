@@ -20,23 +20,40 @@ use console::kprintln;
 // test your drivers (Phase 2). Add them as needed.
 //extern crate pi;
 use pi::timer::spin_sleep;
+use pi::gpio::Gpio;
+use pi::gpio::Function;
 use core::time::Duration;
+use pi::uart::MiniUart;
+use core::fmt::Write;
 
-const GPIO_BASE: usize = 0x3F000000 + 0x200000;
+//const GPIO_BASE: usize = 0x3F000000 + 0x200000;
 
-const GPIO_FSEL1: *mut u32 = (GPIO_BASE + 0x04) as *mut u32;
-const GPIO_SET0: *mut u32 = (GPIO_BASE + 0x1C) as *mut u32;
-const GPIO_CLR0: *mut u32 = (GPIO_BASE + 0x28) as *mut u32;
+//const GPIO_FSEL1: *mut u32 = (GPIO_BASE + 0x04) as *mut u32;
+//const GPIO_SET0: *mut u32 = (GPIO_BASE + 0x1C) as *mut u32;
+//const GPIO_CLR0: *mut u32 = (GPIO_BASE + 0x28) as *mut u32;
 
 unsafe fn kmain() -> ! {
     // FIXME: Start the shell.
-    let duration = Duration::from_micros(1000);
+    //let duration = Duration::from_millis(1000);
+     ////getting the gpio
+    //let mut pin_16 = Gpio::new(16).into_output();
     
-    GPIO_FSEL1.write_volatile(1 << 18);
+    //GPIO_FSEL1.write_volatile(1 << 18);
+    //loop {
+        ////GPIO_SET0.write_volatile(1 << 16);
+        //pin_16.set();
+        //spin_sleep(duration);
+        ////GPIO_CLR0.write_volatile(1 << 16);
+        //pin_16.clear();
+        //spin_sleep(duration);
+    //}
+    
+    
+    let mut uart = MiniUart::new();
     loop {
-        GPIO_SET0.write_volatile(1 << 16);
-        spin_sleep(duration);
-        GPIO_CLR0.write_volatile(1 << 16);
-        spin_sleep(duration);
+        if (uart.has_byte()) {
+            let read_byte = uart.read_byte();
+            uart.write_byte(read_byte);
+        }
     }
 }

@@ -30,16 +30,26 @@ struct Registers {
     // FIXME: Declare the "MU" registers from page 8.
     // FIXME: change the types to be minimal
     IO: Volatile<u8>,
+    _r0: [Reserved<u8>; 3],
     IER: Volatile<u8>,
+    _r1: [Reserved<u8>; 3],
     IIR: Volatile<u8>,
+    _r2: [Reserved<u8>; 3],
     LCR: Volatile<u8>,
+    _r3: [Reserved<u8>; 3],
     MCR: Volatile<u8>,
+    _r4: [Reserved<u8>; 3],
     LSR: Volatile<u8>,
+    _r5: [Reserved<u8>; 3],
     MSR: Volatile<u8>,
+    _r6: [Reserved<u8>; 3],
     SCRATCH: Volatile<u8>,
+    _r7: [Reserved<u8>; 3],
     CNTL: Volatile<u8>,
+    _r8: [Reserved<u8>; 3],
     STAT: Volatile<u32>,
     BAUD: Volatile<u16>,
+    _r9: [Reserved<u8>; 2],
 }
 
 /// The Raspberry Pi's "mini UART".
@@ -65,12 +75,12 @@ impl MiniUart {
 
         // FIXME: Implement remaining mini UART initialization.
         registers.LCR.write(0b011);
-        registers.CNTL.write(0b011);
         registers.BAUD.write(270);
         let gpio15 = Gpio::new(15);
         gpio15.into_alt(Function::Alt5);
         let gpio14 = Gpio::new(14);
         gpio14.into_alt(Function::Alt5);
+        registers.CNTL.write(0b011);
 
         MiniUart{registers: registers, timeout: None}
     }
@@ -97,7 +107,7 @@ impl MiniUart {
     /// method returns `true`, a subsequent call to `read_byte` is guaranteed to
     /// return immediately. This method does not block.
     pub fn has_byte(&self) -> bool {
-        self.registers.LSR.read() & 1 != 0
+        self.registers.LSR.read() & 0b01 != 0
     }
 
     /// Blocks until there is a byte ready to read. If a read timeout is set,
@@ -147,15 +157,21 @@ impl MiniUart {
 impl fmt::Write for MiniUart {
     fn write_str(&mut self, s: &str) -> fmt::Result {
         for b in s.as_bytes() {
-            match b {
-                b if *b == '\n' as u8 => {
-                    self.write_byte('\r' as u8);
-                    self.write_byte(*b);
-                },
-                _ => {
-                    self.write_byte(*b);
-                }
+            if *b == '\n' as u8 {
+                self.write_byte('\r' as u8);
+                self.write_byte(*b);
+            } else {
+                self.write_byte(*b);
             }
+            //match b {
+                //b if *b == '\n' as u8 => {
+                    //self.write_byte('\r' as u8);
+                    //self.write_byte(*b);
+                //},
+                //_ => {
+                    //self.write_byte(*b);
+                //}
+            //}
         }
         Ok(())
     }
