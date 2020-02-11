@@ -48,10 +48,9 @@ unsafe fn kmain() -> ! {
         //spin_sleep(duration);
     //}
     
-    
     spin_sleep(duration);
     loop {
-        shell::shell("> ")
+        shell::shell("> ");
     }
     //let mut uart = MiniUart::new();
     //loop {

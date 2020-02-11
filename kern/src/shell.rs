@@ -45,19 +45,19 @@ impl<'a> Command<'a> {
 
 /// Starts a shell using `prefix` as the prefix for each line. This function
 /// returns if the `exit` command is called.
-pub fn shell(prefix: &str) -> ! {
-    loop {
+pub fn shell(prefix: &str) {
+    kprintln!("Hello! Welcome to the shell!");
+    'outer: loop {
         kprint!("{}", prefix);
         let mut buffer = [0u8; 512];
         let mut input = StackVec::new(&mut buffer);
         let mut console = CONSOLE.lock();
-        loop {
+        'inner: loop {
             let read_byte = console.read_byte();
-            //buffer[index] = read_byte;
-            //index += 1;
             if read_byte == '\r' as u8 || read_byte == '\n' as u8 {
                 kprintln!();
-                break;
+                kprintln!("checkpoint 1");
+                break 'inner;
             } else if read_byte == 8 || read_byte == 127 {
                 if input.len() > 0 {
                     input.pop();
@@ -71,23 +71,33 @@ pub fn shell(prefix: &str) -> ! {
             }
         }
         let mut stack_backend = [""; 64];
-        let command = Command::parse(from_utf8(input.as_slice()).unwrap(), &mut stack_backend);
-        match command {
-            Ok(c) => {
-                if c.path() == "echo" {
-                    for (i, v) in c.args.iter().enumerate() {
-                        if i != 0 {
-                            console.write_str(v);
-                            console.write_str(" ");
-                        }
-                    }
-                    kprintln!();
-                } else {
-                    kprintln!("unknown command: {}", c.path());
-                }
-            },
+        let command_string = from_utf8(input.as_slice());
+        match command_string {
             Err(_) => {
-                kprintln!("uh oh something went wrong");
+                kprintln!("Please give commands in valid utf-8 characters");
+            },
+            Ok(c) => {
+                let command = Command::parse(from_utf8(input.as_slice()).unwrap(), &mut stack_backend);
+                match command {
+                    Ok(c) => {
+                        if c.path() == "echo" {
+                            for (i, v) in c.args.iter().enumerate() {
+                                if i != 0 {
+                                    console.write_str(v);
+                                    console.write_str(" ");
+                                }
+                            }
+                            kprintln!();
+                        } else if c.path() == "exit" {
+                            return;
+                        } else {
+                            kprintln!("unknown command: {}", c.path());
+                        }
+                    },
+                    Err(_) => {
+                        kprintln!("uh oh something went wrong");
+                    }
+                }
             }
         }
     }

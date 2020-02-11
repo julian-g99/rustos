@@ -77,12 +77,12 @@ impl MiniUart {
         //registers.LCR.write(0b011);
         registers.LCR.or_mask(0b011);
         registers.BAUD.write(270);
+        registers.IIR.or_mask(0b11 << 1);
         let gpio15 = Gpio::new(15);
         gpio15.into_alt(Function::Alt5);
         let gpio14 = Gpio::new(14);
         gpio14.into_alt(Function::Alt5);
         //registers.CNTL.write(0b011);
-        registers.IIR.or_mask(0b11 << 1);
         registers.CNTL.or_mask(0b011);
 
         MiniUart{registers: registers, timeout: None}
