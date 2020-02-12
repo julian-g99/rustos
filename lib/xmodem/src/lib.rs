@@ -250,6 +250,7 @@ impl<T: io::Read + io::Write> Xmodem<T> {
         if self.started == false {
             self.write_byte(NAK)?;
             self.started = true;
+            (self.progress)(Progress::Started);
         }
         
         let first_byte = self.read_byte(true)?;
@@ -320,6 +321,7 @@ impl<T: io::Read + io::Write> Xmodem<T> {
         if self.started == false {
             self.expect_byte_or_cancel(NAK, "expected NAK for first byte of transmission")?;
             self.started = true;
+            (self.progress)(Progress::Started);
         }
         if buf.len() == 0 {
             self.write_byte(EOT)?;

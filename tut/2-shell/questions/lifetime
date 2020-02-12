@@ -1,0 +1,1 @@
+The bound is required because we need to make sure the contents of the data structures will at least live as long as the data structure itself. If this was not the case, we can have the data structure still be in scope (during its lifetime), while the contents it's referring to are no longer valid

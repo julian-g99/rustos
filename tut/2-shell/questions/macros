@@ -1,0 +1,1 @@
+These macros are for creating a volatile type given the corresponding type an instruction for the inner method to use.

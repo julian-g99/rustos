@@ -1,0 +1,1 @@
+If we allowed the user to initiate their own state, then they can get start at the wrong state, and not be able to transition to another state. Also, for some states, the alternative function needs to be correctly enabled, so if we let them initiate their own state, this isn't guaranteed.

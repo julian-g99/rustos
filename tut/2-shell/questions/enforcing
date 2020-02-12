@@ -1,0 +1,1 @@
+The way that the read-only and write-only are enforced is that the corresponding types only expose a read method or write method to the outside, respectively. While there is the inner method that one could use, this method returns a raw pointer, so we would need to use unsafe rust in order to write to a ReadVolatile and vice versa.

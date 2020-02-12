@@ -1,0 +1,1 @@
+This bound is needed because we need to clone the data that we just popped as a returned value (wrapped in an option, of course). This won't work if we cannot clone the underlying data. The reason we need to clone is that we just shortened our data structure, so now there's no guarantee that this data will still be valid.

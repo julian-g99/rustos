@@ -1,0 +1,1 @@
+This is because the one in the standar library doesn't have a set-size backing array the way we do. In our case, when there's not enough space, we would have to return an error, since we cannot resize or use a different array. The standard library has no such limitation.

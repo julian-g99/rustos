@@ -1,0 +1,1 @@
+This is enforced because those registers are represented as ReadVolatile, and as discussed in a previous question, this means that we cannot write to them.

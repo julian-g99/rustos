@@ -1,0 +1,1 @@
+If we return the &mut T directly, then we are still craeting multiple mutable references, which the rust compiler does not allow.

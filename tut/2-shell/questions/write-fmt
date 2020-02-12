@@ -1,0 +1,1 @@
+The type that has its write_fmt called is Console, and this is found in console.rs. The reason for this is that when the compiler sees that MutexGuard<Console> doesn't implement fmt::Write, it dereferences it, and then calls the method on the inner type.

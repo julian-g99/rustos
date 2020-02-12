@@ -1,0 +1,1 @@
+Xmodem protocol needs both a receiver and a transmitter. Therefore, if we tried to use xmodem protocol, we would need to have a receiver.

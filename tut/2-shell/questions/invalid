@@ -1,0 +1,1 @@
+It knows to reject the invalid flags because they're not in the struct that we've marked for structop as either the long name or the short name.
