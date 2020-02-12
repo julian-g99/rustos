@@ -257,27 +257,33 @@ impl<T: io::Read + io::Write> Xmodem<T> {
         if first_byte == EOT {
             //performs end of transmission
             self.write_byte(NAK)?;
+            //self.packet += 1;
+            self.packet = self.packet.wrapping_add(1);
             match self.expect_byte(EOT, "second EOT not sent") {
                 Ok(_n) => {
                     self.write_byte(ACK)?;
+                    //self.packet += 1;
+                    self.packet = self.packet.wrapping_add(1);
                     Ok(0) //CHECK: is this the right number to return?
                 },
                 Err(_e) => ioerr!(InvalidData, "second EOT not sent")
             }
         } else if first_byte == SOH {
             self.expect_byte_or_cancel(self.packet, "packet number mismatch")?;
-            self.expect_byte_or_cancel(255 - self.packet, "packet number 1's complement match error")?;
+            self.expect_byte_or_cancel(255_u8.wrapping_sub(self.packet), "packet number 1's complement match error")?;
             for i in 0..128 {
                 buf[i] = self.read_byte(false)?;
             }
+            //self.read_exact(buf);
             match self.expect_byte(get_checksum(buf), "checksum fails") {
                 Ok(_n) => {
                     self.write_byte(ACK)?;
-                    self.packet += 1;
+                    self.packet = self.packet.wrapping_add(1);
                     Ok(buf.len())
                 },
                 Err(_e) => {
-                    ioerr!(Interrupted, "checksum not equal")
+                    self.write_byte(NAK)?;
+                    return ioerr!(Interrupted, "checksum not equal");
                 }
             }
         } else {
@@ -319,9 +325,16 @@ impl<T: io::Read + io::Write> Xmodem<T> {
     pub fn write_packet(&mut self, buf: &[u8]) -> io::Result<usize> {
         //start of transmission
         if self.started == false {
-            self.expect_byte_or_cancel(NAK, "expected NAK for first byte of transmission")?;
+            self.expect_byte(NAK, "hello this is where it's coming from")?;
             self.started = true;
             (self.progress)(Progress::Started);
+            //loop {
+                //if self.expect_byte(NAK, "expected NAK for the first byte of transmission").is_ok() {
+                    //self.started = true;
+                    //(self.progress)(Progress::Started);
+                    //break;
+                //}
+            //}
         }
         if buf.len() == 0 {
             self.write_byte(EOT)?;
@@ -358,11 +371,12 @@ impl<T: io::Read + io::Write> Xmodem<T> {
                     return ioerr!(Interrupted, "check failed")
                 },
                 ACK => {
-                    self.packet += 1;
+                    //self.packet += 1;
+                    self.packet = self.packet.wrapping_add(1);
                     return Ok(num_bytes);
                 },
                 _ => {
-                    self.write_byte(CAN)?;
+                    //self.write_byte(CAN)?;
                     return ioerr!(InvalidData, "response to complete packet isn't ACK or NAK");
                 }
             }

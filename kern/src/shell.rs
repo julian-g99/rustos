@@ -56,7 +56,6 @@ pub fn shell(prefix: &str) {
             let read_byte = console.read_byte();
             if read_byte == '\r' as u8 || read_byte == '\n' as u8 {
                 kprintln!();
-                kprintln!("checkpoint 1");
                 break 'inner;
             } else if read_byte == 8 || read_byte == 127 {
                 if input.len() > 0 {
@@ -66,7 +65,11 @@ pub fn shell(prefix: &str) {
                     console.write_byte(8);
                 }
             } else {
-                input.push(read_byte);
+                if input.push(read_byte).is_err() {
+                    kprintln!();
+                    kprintln!("Input exceeding 512 characters. Stop!");
+                    continue 'outer;
+                }
                 console.write_byte(read_byte);
             }
         }
@@ -94,8 +97,14 @@ pub fn shell(prefix: &str) {
                             kprintln!("unknown command: {}", c.path());
                         }
                     },
+                    Err(Error::TooManyArgs) => {
+                        kprintln!("Too many arguments. Stop!");
+                    },
+                    Err(Error::Empty) => {
+                        kprintln!("Empty command");
+                    },
                     Err(_) => {
-                        kprintln!("uh oh something went wrong");
+                        kprintln!("Unknown parsing error");
                     }
                 }
             }

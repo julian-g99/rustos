@@ -33,12 +33,12 @@ unsafe fn kmain() -> ! {
     loop {
         let mut uart = pi::uart::MiniUart::new();
         let buffer = core::slice::from_raw_parts_mut(BINARY_START, MAX_BINARY_SIZE);
-        uart.set_read_timeout(Duration::from_millis(75));
+        uart.set_read_timeout(Duration::from_millis(750));
         let xmodem = Xmodem::receive(uart, buffer);
         match xmodem {
-            Err(ref e) if e.kind() == shim::io::ErrorKind::TimedOut => {
-                continue;
-            },
+            //Err(ref e) if e.kind() == shim::io::ErrorKind::TimedOut => {
+                //continue;
+            //},
             Err(_) => {
                 //uart.write_str("Got an error other than timeout");
                 continue;
