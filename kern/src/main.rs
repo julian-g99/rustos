@@ -4,13 +4,18 @@
 #![feature(asm)]
 #![feature(global_asm)]
 #![feature(optin_builtin_traits)]
+#![feature(raw_vec_internals)]
 #![cfg_attr(not(test), no_std)]
 #![cfg_attr(not(test), no_main)]
 
 #[cfg(not(test))]
 mod init;
 
+extern crate alloc;
+
+pub mod allocator;
 pub mod console;
+pub mod fs;
 pub mod mutex;
 pub mod shell;
 
@@ -26,6 +31,13 @@ use core::time::Duration;
 use pi::uart::MiniUart;
 use core::fmt::Write;
 
+//NOTE: code from skeleton
+use allocator::Allocator;
+use fs::FileSystem;
+
+#[cfg_attr(not(test), global_allocator)]
+pub static ALLOCATOR: Allocator = Allocator::uninitialized();
+pub static FILESYSTEM: FileSystem = FileSystem::uninitialized();
 //const GPIO_BASE: usize = 0x3F000000 + 0x200000;
 
 //const GPIO_FSEL1: *mut u32 = (GPIO_BASE + 0x04) as *mut u32;
@@ -57,4 +69,14 @@ unsafe fn kmain() -> ! {
         ////let read_byte = uart.read_byte();
         ////uart.write_byte(read_byte);
     //}
+
+    //NOTE: this is code from the lab3 skeleton
+    unsafe {
+        ALLOCATOR.initialize();
+        FILESYSTEM.initialize();
+    }
+
+    kprintln!("Welcome to cs3210!");
+    shell::shell("> ");
+    //above skeleton code
 }
