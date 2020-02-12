@@ -252,18 +252,10 @@ impl<T: io::Read + io::Write> Xmodem<T> {
             self.started = true;
         }
         
-        //TODO: assuming here that we are the receiver, but what if we're the sender (sender also
-        //receives packets)
         let first_byte = self.read_byte(true)?;
         if first_byte == EOT {
             //performs end of transmission
-            self.write_byte(NAK)?; //CHECK: does this actually send a byte?
-            //'wait: loop { //CHECK: is this the right way to block?
-                ////check for second EOT
-                //if self.read_byte(false)? == EOT {
-                    //break 'wait;
-                //}
-            //}
+            self.write_byte(NAK)?;
             match self.expect_byte(EOT, "second EOT not sent") {
                 Ok(_n) => {
                     self.write_byte(ACK)?;
@@ -274,9 +266,6 @@ impl<T: io::Read + io::Write> Xmodem<T> {
         } else if first_byte == SOH {
             self.expect_byte_or_cancel(self.packet, "packet number mismatch")?;
             self.expect_byte_or_cancel(255 - self.packet, "packet number 1's complement match error")?;
-            //if packet_number != self.packet + 1 || packet_number_complement != 255 - (self.packet + 1) {
-                //return ioerr!(InvalidData, "packet number doesn't match");
-            //}
             for i in 0..128 {
                 buf[i] = self.read_byte(false)?;
             }
@@ -341,7 +330,7 @@ impl<T: io::Read + io::Write> Xmodem<T> {
                     self.write_byte(EOT)?;
                     match self.expect_byte(ACK, "ACK not sent by receiver") {
                         Err(_e) => ioerr!(InvalidData, "ACK not sent by receiver after second EOT"),
-                        Ok(_n) => Ok(2) //TODO: what do i do here?
+                        Ok(_n) => Ok(0)
                     }
                 }
             }
@@ -353,18 +342,15 @@ impl<T: io::Read + io::Write> Xmodem<T> {
             self.write_byte(SOH)?;
             self.write_byte(self.packet)?;
             self.write_byte(255 - self.packet)?;
-            num_bytes += 3;
             for i in 0..128 {
                 if i < buf.len() {
                     self.write_byte(buf[i])?;
                     num_bytes += 1;
                 } else {
                     self.write_byte(0)?;
-                    num_bytes += 1;
                 }
             }
             self.write_byte(get_checksum(buf))?;
-            num_bytes += 1;
             match self.read_byte(true)? {
                 NAK => {
                     return ioerr!(Interrupted, "check failed")

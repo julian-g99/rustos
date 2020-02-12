@@ -56,28 +56,49 @@ fn main() {
     let mut port = serial::open(&opt.tty_path).expect("path points to invalid TTY");
 
     // FIXME: Implement the `ttywrite` utility.
-    let mut buf = String::new();
+    //let mut buf = String::new();
+    let progress_fn = |progress| {
+        println!("Progress: {:?}", progress);
+    };
     match &opt.input {
         Some(fp) => {
             let mut file = File::open(&fp).expect("Input file fails to open");
-            file.read_to_string(&mut buf).expect("Input file cannot be read");
+            //file.read_to_string(&mut buf).expect("Input file cannot be read");
+            if opt.raw {
+                //let num_bytes = file.read_to_end(port);
+                let num_bytes = io::copy(&mut file, &mut port).expect("Raw write failed");
+                println!("Wrote {} bytes to output using raw", num_bytes);
+            } else {
+                println!("xmodem owo");
+                //loop {
+                    //let mut port = serial::open(&opt.tty_path).expect("path points to invalid TTY");
+                    //let mut file = File::open(&fp).expect("Input file fails to open");
+                    let num_bytes = Xmodem::transmit_with_progress(file, port, progress_fn).expect("Xmodem transmisison failed");
+                    println!("Wrote {} bytes to output using xmodem", num_bytes);
+                    //match Xmodem::transmit_with_progress(&mut file, &mut port, progress_fn) {
+                        //Ok(n) => {
+                            //println!("Wrote {} bytes to output using xmodem", n);
+                            //break;
+                        //},
+                        //Err(_e) => {
+                            //println!("{}", e);
+                            //continue;
+                        //}
+                    //}
+                //}
+            }
         },
         None => {
             let stdin = io::stdin();
             let mut handle = stdin.lock();
-            handle.read_to_string(&mut buf).expect("Cannot read from stdin");
+            //handle.read_to_string(&mut buf).expect("Cannot read from stdin");
+            if opt.raw {
+                let num_bytes = io::copy(&mut handle, &mut port).expect("Raw write failed");
+                println!("Wrote {} bytes to output using raw", num_bytes);
+            } else {
+                let num_bytes = Xmodem::transmit_with_progress(handle, port, progress_fn).expect("Xmodem transmission failed");
+                println!("Wrote {} bytes to output using xmodem", num_bytes);
+            }
         }
-    }
-
-    if opt.raw {
-        //TODO: raw transmission
-        port.write_all(buf.as_bytes()).expect("Raw write failed");
-        println!("Wrote {} bytes to output using raw", buf.as_bytes().len());
-    } else {
-        let progress_fn = |progress| {
-            println!("Progress: {:?}", progress);
-        };
-        let num_bytes = Xmodem::transmit_with_progress(buf.as_bytes(), port, progress_fn).expect("Xmodem tranmission failed");
-        println!("Wrote {} bytes to output using xmodem", num_bytes);
     }
 }
