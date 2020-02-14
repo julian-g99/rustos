@@ -1,0 +1,52 @@
+diff --git a/kern/Cargo.toml b/kern/Cargo.toml
+index 370b25d..13d7ac8 100644
+--- a/kern/Cargo.toml
++++ b/kern/Cargo.toml
+@@ -16,7 +16,7 @@ memcpy = true
+ pi = { path = "../lib/pi" }
+ shim = { path = "../lib/shim", features = ["no_std", "alloc"] }
+ stack-vec = { path = "../lib/stack-vec/" }
+-fat32 = { path = "../lib/fat32/", features = ["no_std"] }
++#fat32 = { path = "../lib/fat32/", features = ["no_std"] }
+ 
+ [dev-dependencies]
+ shim = { path = "../lib/shim", features = ["alloc"] }
+diff --git a/kern/src/allocator.rs b/kern/src/allocator.rs
+index e576001..2ae21be 100644
+--- a/kern/src/allocator.rs
++++ b/kern/src/allocator.rs
+@@ -80,7 +80,7 @@ pub fn memory_map() -> Option<(usize, usize)> {
+ 
+     unimplemented!("memory map")
+ }
+-
++/*
+ impl fmt::Debug for Allocator {
+     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+         match self.0.lock().as_mut() {
+@@ -89,4 +89,4 @@ impl fmt::Debug for Allocator {
+         }
+         Ok(())
+     }
+-}
++}*/
+diff --git a/kern/src/shell.rs b/kern/src/shell.rs
+index 11a9c33..e65ea0c 100644
+--- a/kern/src/shell.rs
++++ b/kern/src/shell.rs
+@@ -5,12 +5,12 @@ use stack_vec::StackVec;
+ 
+ use pi::atags::Atags;
+ 
+-use fat32::traits::FileSystem;
+-use fat32::traits::{Dir, Entry};
++//use fat32::traits::FileSystem;
++//use fat32::traits::{Dir, Entry};
+ 
+ use crate::console::{kprint, kprintln, CONSOLE};
+ use crate::ALLOCATOR;
+-use crate::FILESYSTEM;
++//use crate::FILESYSTEM;
+ 
+ /// Error type for `Command` parse failures.
+ #[derive(Debug)]

@@ -7,12 +7,12 @@ use core::fmt::Write;
 
 use pi::atags::Atags;
 
-use fat32::traits::FileSystem;
-use fat32::traits::{Dir, Entry};
+//use fat32::traits::FileSystem;
+//use fat32::traits::{Dir, Entry};
 
 use crate::console::{kprint, kprintln, CONSOLE};
 use crate::ALLOCATOR;
-use crate::FILESYSTEM;
+//use crate::FILESYSTEM;
 
 /// Error type for `Command` parse failures.
 #[derive(Debug)]
@@ -102,7 +102,7 @@ pub fn shell(prefix: &str) -> ! {
                             }
                             kprintln!();
                         } else if c.path() == "exit" {
-                            return;
+                            //return;
                         } else {
                             kprintln!("unknown command: {}", c.path());
                         }

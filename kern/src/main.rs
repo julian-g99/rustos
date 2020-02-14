@@ -44,7 +44,7 @@ pub static FILESYSTEM: FileSystem = FileSystem::uninitialized();
 //const GPIO_SET0: *mut u32 = (GPIO_BASE + 0x1C) as *mut u32;
 //const GPIO_CLR0: *mut u32 = (GPIO_BASE + 0x28) as *mut u32;
 
-unsafe fn kmain() -> ! {
+fn kmain() -> ! {
     // FIXME: Start the shell.
     let duration = Duration::from_millis(1000);
      ////getting the gpio
@@ -61,14 +61,6 @@ unsafe fn kmain() -> ! {
     //}
     
     spin_sleep(duration);
-    loop {
-        shell::shell("> ");
-    }
-    //let mut uart = MiniUart::new();
-    //loop {
-        ////let read_byte = uart.read_byte();
-        ////uart.write_byte(read_byte);
-    //}
 
     //NOTE: this is code from the lab3 skeleton
     unsafe {

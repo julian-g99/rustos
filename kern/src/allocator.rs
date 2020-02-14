@@ -80,7 +80,7 @@ pub fn memory_map() -> Option<(usize, usize)> {
 
     unimplemented!("memory map")
 }
-
+/*
 impl fmt::Debug for Allocator {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self.0.lock().as_mut() {
@@ -89,4 +89,4 @@ impl fmt::Debug for Allocator {
         }
         Ok(())
     }
-}
+}*/
