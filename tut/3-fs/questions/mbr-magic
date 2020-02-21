@@ -1,0 +1,1 @@
+The last two byptes of where the MBR should be (so offset by 510) should signature bytes that signify we have a valid MBR sector. If these bytes are found, then we know the MBR is valid

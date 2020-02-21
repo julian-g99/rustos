@@ -1,0 +1,12 @@
+We would look at the following information in the EBPB:
+- # of reserved sectors
+- # of FAT's (in case it's not 2)
+- # of sectors per FAT (the one at bit 36)
+- cluster number of the root directory
+
+1. With the information for the root's cluster number, we go there to read the first cluster number of the root (by concatenating the higher and lower 16 bits).
+2. At the cluster for the root directory, we look through the data there until we find a directory entry whose name is "a". If we don't find it, then go to the first FAT to find the next cluster, and repeat.
+3. In the cluster for the "a" directory, we look through the data until we come upon a directory entry whose name is "b". If we don't find it, then go to the first FAT to find the next cluster of "a", and repeat.
+4. Repeat the above until we are in the "b" directory.
+5. Similarly to looking for directory, we look through the cluster for "b" until we find an entry whose name is "c" and has the extension ".txt" (and go to the next cluster chain if needed).
+6. Inside this entry, it should tell us where the first entry of "c.txt" is.

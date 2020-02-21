@@ -1,0 +1,1 @@
+We read the the byte at offset 11. If this byte is 0x0F, then we know that this entry is an LFN entry, otherwise it's not.

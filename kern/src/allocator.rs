@@ -4,7 +4,7 @@ mod util;
 mod bin;
 mod bump;
 
-type AllocatorImpl = bin::Allocator;
+type AllocatorImpl = bump::Allocator; //TODO: change this to bin when done
 
 #[cfg(test)]
 mod tests;
@@ -82,7 +82,8 @@ pub fn memory_map() -> Option<(usize, usize)> {
 	for atag in atags {
 		if atag.mem().is_some() {
 			let mem_atag = atag.mem().unwrap();
-			let end_address = (mem_atag.start + mem_atag.size) as usize;
+			let end_address = util::align_down((mem_atag.start + mem_atag.size) as usize, page_size);
+            let start_address = util::align_up(binary_end, page_size);
 			if end_address >= binary_end {
 				return Some((binary_end, end_address));
 			}

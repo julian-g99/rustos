@@ -1,0 +1,1 @@
+The max size of a file in FAT 32 is 4 GB. In a directory entry, we have 4 bytes (32 bits) to annotate the size of a file. This means that a single file can be at most 2^32 bytes, which is exactly 4 GB.

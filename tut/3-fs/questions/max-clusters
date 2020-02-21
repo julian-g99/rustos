@@ -1,0 +1,1 @@
+It max number of clusters that we can have should be 2^32. This limitation is immediate from the fact that we have 32 bits for each entry in the FAT. For FAT 16 (or any other type of FAT), this number would of course be different since they use a different number of bits for each entry.
