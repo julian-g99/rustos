@@ -4,8 +4,8 @@ use shim::io;
 
 use crate::traits::BlockDevice;
 
-#[repr(C)]
-#[derive(Copy, Clone)]
+#[repr(C, packed)]
+#[derive(Copy, Clone, Default)]
 pub struct CHS {
     head: u8,
     sector_cylinder: u16
@@ -14,13 +14,14 @@ pub struct CHS {
 // FIXME: implement Debug for CHS
 impl fmt::Debug for CHS {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "head: {:?}, sector and cylinder: {:?}", self.head, self.sector_cylinder)
+        write!(f, "head: {:?}, sector and cylinder: {:?}", self.head, &{self.sector_cylinder})
     }
 }
 
 //const_assert_size!(CHS, 3);
 
 #[repr(C, packed)]
+#[derive(Copy, Clone)]
 pub struct PartitionEntry {
     boot_indicator: u8,
     head_chs: CHS,
@@ -45,11 +46,12 @@ impl fmt::Debug for PartitionEntry {
 
 /// The master boot record (MBR).
 #[repr(C, packed)]
+#[derive(Copy, Clone)]
 pub struct MasterBootRecord {
     bootstrap: [u8; 436],
     disk_id: [u8; 10],
     partition_entries: [PartitionEntry; 4],
-    valid_siganture: u16
+    valid_signature: u16
 }
 
 // FIXME: implemente Debug for MaterBootRecord
@@ -57,7 +59,7 @@ impl fmt::Debug for MasterBootRecord {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "unique disk id: {:?}, partition entries: {:?}, \
             valid sector signature bytes: {:?}",
-             self.disk_id, self.partition_entries, &{self.valid_siganture})
+            self.disk_id, self.partition_entries, &{self.valid_signature})
     }
 }
 
@@ -83,6 +85,28 @@ impl MasterBootRecord {
     /// boot indicator. Returns `Io(err)` if the I/O error `err` occured while
     /// reading the MBR.
     pub fn from<T: BlockDevice>(mut device: T) -> Result<MasterBootRecord, Error> {
-        unimplemented!("MasterBootRecord::from()")
+        //let sector_size = device.sector_size();
+        //let buf: &mut[u8] = &mut ([0u8; 512]); //CHECK: is it ok to just use 512 here?
+        let mut arr = [0u8; 512];
+        let buf = &mut arr[..];
+        match device.read_sector(0, buf) {
+            Err(e) => {
+                return Err(Error::Io(e));
+            },
+            Ok(_) => {
+                let mbr = unsafe{ *(buf.as_mut_ptr() as *mut MasterBootRecord) };
+                //let mbr = unsafe {core::mem::transmute::<}
+                if mbr.valid_signature != 0xAA55 {
+                    return Err(Error::BadSignature);
+                }
+                for i in 0..4 {
+                    let partition = mbr.partition_entries[i];
+                    if partition.boot_indicator != 0 && partition.boot_indicator != 0x80 {
+                        return Err(Error::UnknownBootIndicator(i as u8));
+                    }
+                }
+                return Ok(mbr);
+            }
+        }
     }
 }
