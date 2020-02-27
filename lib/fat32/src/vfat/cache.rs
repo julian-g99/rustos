@@ -87,7 +87,18 @@ impl CachedPartition {
     ///
     /// Returns an error if there is an error reading the sector from the disk.
     pub fn get_mut(&mut self, sector: u64) -> io::Result<&mut [u8]> {
-        unimplemented!("CachedPartition::get_mut()")
+        if !self.cache.contains_key(&sector) {
+            self.cache.insert(sector, CacheEntry{data: Vec::new(), dirty: false});
+        }
+
+        match self.cache.get_mut(&sector) {
+            Some(entry) => {
+                Ok(entry.data.as_mut_slice())
+            },
+            None => {
+                Err(io::Error::new(io::ErrorKind::NotFound, "cannot find the cached partition"))
+            }
+        }
     }
 
     /// Returns a reference to the cached sector `sector`. If the sector is not
@@ -97,7 +108,18 @@ impl CachedPartition {
     ///
     /// Returns an error if there is an error reading the sector from the disk.
     pub fn get(&mut self, sector: u64) -> io::Result<&[u8]> {
-        unimplemented!("CachedPartition::get()")
+        if !self.cache.contains_key(&sector) {
+            self.cache.insert(sector, CacheEntry{data: Vec::new(), dirty: false});
+        }
+
+        match self.cache.get(&sector) {
+            Some(entry) => {
+                Ok(entry.data.as_slice())
+            },
+            None => {
+                Err(io::Error::new(io::ErrorKind::NotFound, "cannot find the cached partition"))
+            }
+        }
     }
 }
 
@@ -105,15 +127,43 @@ impl CachedPartition {
 // `write_sector` methods should only read/write from/to cached sectors.
 impl BlockDevice for CachedPartition {
     fn sector_size(&self) -> u64 {
-        unimplemented!()
+        self.device.sector_size()
     }
 
     fn read_sector(&mut self, sector: u64, buf: &mut [u8]) -> io::Result<usize> {
-        unimplemented!()
+        let physical_sector = match self.virtual_to_physical(sector) {
+            None => {
+                return Err(io::Error::new(io::ErrorKind::NotFound, "cannot find the cached partition"))
+            },
+            Some(s) => s
+        };
+
+        if self.cache.contains_key(&physical_sector) {
+            let data_slice = self.cache[&physical_sector].data.as_slice();
+            buf.copy_from_slice(data_slice);
+            Ok(data_slice.len())
+        } else {
+            Err(io::Error::new(io::ErrorKind::NotFound, "cannot find the cached partition"))
+        }
     }
 
     fn write_sector(&mut self, sector: u64, buf: &[u8]) -> io::Result<usize> {
-        unimplemented!()
+        let physical_sector = match self.virtual_to_physical(sector) {
+            None => {
+                return Err(io::Error::new(io::ErrorKind::NotFound, "cannot find the cached partition"))
+            },
+            Some(s) => s
+        };
+        if self.cache.contains_key(&physical_sector) {
+            //let mut cache_slice = self.cache[&sector].data.as_mut_slice();
+            //cache_slice.copy_from_slice(buf);
+            let mut new_vec = Vec::new();
+            new_vec.extend_from_slice(buf);
+            self.cache.insert(physical_sector, CacheEntry{data: new_vec, dirty: true});
+            Ok(buf.len())
+        } else {
+            Err(io::Error::new(io::ErrorKind::NotFound, "cannot find the cached partition"))
+        }
     }
 }
 

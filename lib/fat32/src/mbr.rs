@@ -27,7 +27,7 @@ pub struct PartitionEntry {
     head_chs: CHS,
     partition_type: u8,
     end_chs: CHS,
-    relative_sector: u32,
+    pub relative_sector: u32,
     total_sectors: u32
 }
 
@@ -50,7 +50,7 @@ impl fmt::Debug for PartitionEntry {
 pub struct MasterBootRecord {
     bootstrap: [u8; 436],
     disk_id: [u8; 10],
-    partition_entries: [PartitionEntry; 4],
+    pub partition_entries: [PartitionEntry; 4], //TODO: should I do this?
     valid_signature: u16
 }
 
