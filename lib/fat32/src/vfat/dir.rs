@@ -9,18 +9,36 @@ use shim::newioerr;
 use crate::traits;
 use crate::util::VecExt;
 use crate::vfat::{Attributes, Date, Metadata, Time, Timestamp};
-use crate::vfat::{Cluster, Entry, File, VFatHandle};
+use crate::vfat::{Cluster, Entry, File, VFatHandle, VFat};
 
 #[derive(Debug)]
 pub struct Dir<HANDLE: VFatHandle> {
     pub vfat: HANDLE,
-    // FIXME: Fill me in.
+    first_cluster: Cluster,
+    metadata: Metadata
+}
+
+pub struct EntryIterator<HANDLE: VFatHandle> {
+    dir: Dir<HANDLE>,
+    curr_entry: Entry<HANDLE>
 }
 
 #[repr(C, packed)]
 #[derive(Copy, Clone)]
 pub struct VFatRegularDirEntry {
-    // FIXME: Fill me in.
+    file_name: [u8; 8],
+    file_extension: [u8; 3],
+    attribute: Attributes,
+    reserved: u8,
+    creation_time_10th_second: u16,
+    creation_time: Time,
+    creation_date: Date,
+    last_access_date: Date,
+    first_cluster_high: u16,
+    last_modification_time: Time,
+    last_modification_date: Date,
+    first_cluster_low: u16,
+    file_size: u16
 }
 
 //const_assert_size!(VFatRegularDirEntry, 32);
@@ -28,7 +46,14 @@ pub struct VFatRegularDirEntry {
 #[repr(C, packed)]
 #[derive(Copy, Clone)]
 pub struct VFatLfnDirEntry {
-    // FIXME: Fill me in.
+    sequence_number: u8,
+    file_name: [u8; 10],
+    attribute: Attributes,
+    file_type: u8,
+    checksum: u8,
+    second_name: [u8; 12],
+    reserved: u16,
+    third_name: [u8; 4]
 }
 
 //const_assert_size!(VFatLfnDirEntry, 32);
@@ -36,7 +61,9 @@ pub struct VFatLfnDirEntry {
 #[repr(C, packed)]
 #[derive(Copy, Clone)]
 pub struct VFatUnknownDirEntry {
-    // FIXME: Fill me in.
+    file_name_or_extension: [u8; 11],
+    attribute: Attributes,
+    other_info: [u8; 24]
 }
 
 //const_assert_size!(VFatUnknownDirEntry, 32);
@@ -63,6 +90,46 @@ impl<HANDLE: VFatHandle> Dir<HANDLE> {
     }
 }
 
-//impl<HANDLE: VFatHandle> traits::Dir for Dir<HANDLE> {
-    //// FIXME: Implement `trait::Dir` for `Dir`.
-//}
+fn get_byte(num: u32, i: usize) -> u8 {
+    assert!(i <= 3);
+    let mask = 0x011 << ((4 - i) * 8);
+    (num & mask) as u8
+} 
+
+impl<HANDLE: VFatHandle> EntryIterator<HANDLE> {
+    fn new_from_dir(root: &Dir<HANDLE>) -> EntryIterator<HANDLE> {
+        let reached_end = false;
+        let dir_start = root.dir.first_cluster;
+
+        loop {
+            let mut cluster_chain: Vec<u8> = Vec::new();
+            //root.vfat.read_chain(root.dir.first_cluster, &mut cluster_chain);
+            root.vfat.lock(|fat: &mut VFat<HANDLE>| {
+                fat.read_chain(root.first_cluster, &mut cluster_chain);
+            });
+            let entries = VecExt::cast::<u32>(cluster_chain);
+            for entry in entries {
+                let id = get_byte(entry, 0); //CHECK: is first byte little endian here?
+                let vfat_entry = entry as VFatDirEntry; //TODO: how do i do this cast?
+            }
+        }
+    }
+}
+
+impl<HANDLE: VFatHandle> Iterator for EntryIterator<HANDLE> {
+    type Item = Entry<HANDLE>;
+    fn next(&mut self) -> Option<Self::Item> {
+        unimplemented!("DirIterator::next()")
+    }
+}
+
+impl<HANDLE: VFatHandle> traits::Dir for Dir<HANDLE> {
+    // FIXME: Implement `trait::Dir` for `Dir`.
+    type Entry = Entry<HANDLE>;
+    type Iter = EntryIterator<HANDLE>;
+
+    fn entries(&self) -> io::Result<Self::Iter> {
+        //TODO: implement
+        Ok(EntryIterator::new_from_dir(self))
+    }
+}

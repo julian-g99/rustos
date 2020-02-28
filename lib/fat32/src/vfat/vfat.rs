@@ -63,32 +63,42 @@ impl<HANDLE: VFatHandle> VFat<HANDLE> {
 
     // TODO: The following methods may be useful here:
     //
-    //  * A method to read from an offset of a cluster into a buffer.
-    //
-    //    fn read_cluster(
-    //        &mut self,
-    //        cluster: Cluster,
-    //        offset: usize,
-    //        buf: &mut [u8]
-    //    ) -> io::Result<usize>;
-    //
-    //  * A method to read all of the clusters chained from a starting cluster
-    //    into a vector.
-    //
-    //    fn read_chain(
-    //        &mut self,
-    //        start: Cluster,
-    //        buf: &mut Vec<u8>
-    //    ) -> io::Result<usize>;
-    //
-    ///* A method to return a reference to a `FatEntry` for a cluster where the reference points directly into a cached sector.
-    fn fat_entry(&mut self, cluster: Cluster) -> io::Result<&FatEntry> {
-        //let start: *const u32 = self.fat_start_sector as *const u32;
-        //unsafe {
-            //let cluster_ptr = start.offset(cluster.0 as isize);
-            //Ok(&FatEntry(*cluster_ptr))
-        //}
+    ///A method to read from an offset of a cluster into a buffer.
+    pub fn read_cluster( //CHECK: should this be public?
+        &mut self,
+        cluster: Cluster,
+        offset: usize, //CHECK: what is the unit of this offset
+        buf: &mut [u8]
+    ) -> io::Result<usize> {
+        //CHECK: is cluster always bigger than sector
+        let sector = cluster.0 * self.sectors_per_cluster as u32 + offset as u32;
+        match self.device.get(sector as u64) {
+            Err(e) => return Err(e),
+            Ok(s) => {
+                buf.copy_from_slice(s);
+                return Ok(buf.len());
+            }
+        }
     }
+    
+    /// A method to read all of the clusters chained from a starting cluster
+    /// into a vector.
+    
+    pub fn read_chain(
+        &mut self,
+        start: Cluster,
+        buf: &mut Vec<u8>
+    ) -> io::Result<usize> {
+        unimplemented!("VFat::read_chain()")
+    }
+    
+    ///A method to return a reference to a `FatEntry` for a cluster where the reference points directly into a cached sector.
+    fn fat_entry(&mut self, cluster: Cluster) -> io::Result<FatEntry> { //TODO: i removed the reference on FatEntry
+        let sector = self.device.get(self.fat_start_sector)?;
+        let entry_value = sector[cluster.0 as usize * size_of::<u32>()];
+        Ok(FatEntry(entry_value as u32))
+    }
+    
 }
 
 impl<'a, HANDLE: VFatHandle> FileSystem for &'a HANDLE {
