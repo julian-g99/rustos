@@ -47,13 +47,27 @@ impl<HANDLE: VFatHandle> VFat<HANDLE> {
         };
 
         //TODO: change this to not use first partition found
-        let first_sector = mbr.partition_entries[0].relative_sector; //CHECK: is "start of disk" always 0/
-        let ebpb = match BiosParameterBlock::from(&mut device, first_sector as u64) {
-            Ok(b) => b,
-            Err(e) => {
-                return Err(e);
+        let ebpb_option = None;
+        let first_sector = 0;
+        for i in 0..4 {
+            first_sector = mbr.partition_entries[i].relative_sector;
+            match BiosParameterBlock::from(&mut device, first_sector as u64) {
+                Ok(b) => {
+                    ebpb_option = Some(b);
+                },
+                Err(e) => {
+                    return Err(e);
+                }
             }
         };
+        let ebpb = ebpb_option.expect("ebpb unwrap failed");
+        //let first_sector = mbr.partition_entries[0].relative_sector; //CHECK: is "start of disk" always 0/
+        //let ebpb = match BiosParameterBlock::from(&mut device, first_sector as u64) {
+            //Ok(b) => b,
+            //Err(e) => {
+                //return Err(e);
+            //}
+        //};
         let partition = Partition{start: first_sector as u64 + ebpb.num_reserved_sectors as u64, num_sectors: ebpb.sectors_per_fat as u64, sector_size: ebpb.bytes_per_sector as u64};
         let vfat = VFat{phantom: PhantomData, device: CachedPartition::new(device, partition), bytes_per_sector: ebpb.bytes_per_sector,
                         sectors_per_cluster: ebpb.sectors_per_cluster, sectors_per_fat: ebpb.sectors_per_fat,

@@ -88,7 +88,9 @@ impl CachedPartition {
     /// Returns an error if there is an error reading the sector from the disk.
     pub fn get_mut(&mut self, sector: u64) -> io::Result<&mut [u8]> {
         if !self.cache.contains_key(&sector) {
-            self.cache.insert(sector, CacheEntry{data: Vec::new(), dirty: false});
+            let mut buf = vec![0; self.device.sector_size() as usize];
+            self.device.read_sector(self.virtual_to_physical(sector).expect("virtual to physical address translation failed"), buf.as_mut_slice())?;
+            self.cache.insert(sector, CacheEntry{data: buf, dirty: false});
         }
 
         match self.cache.get_mut(&sector) {
@@ -108,8 +110,13 @@ impl CachedPartition {
     ///
     /// Returns an error if there is an error reading the sector from the disk.
     pub fn get(&mut self, sector: u64) -> io::Result<&[u8]> {
+        //let sector_size = self.device.sector_size();
+        //let buf = vec![][0u8; sector_size];
+
         if !self.cache.contains_key(&sector) {
-            self.cache.insert(sector, CacheEntry{data: Vec::new(), dirty: false});
+            let mut buf = vec![0; self.device.sector_size() as usize];
+            self.device.read_sector(self.virtual_to_physical(sector).expect("virtual to physical address translation failed"), buf.as_mut_slice())?;
+            self.cache.insert(sector, CacheEntry{data: buf, dirty: false});
         }
 
         match self.cache.get(&sector) {
@@ -133,7 +140,7 @@ impl BlockDevice for CachedPartition {
     fn read_sector(&mut self, sector: u64, buf: &mut [u8]) -> io::Result<usize> {
         let physical_sector = match self.virtual_to_physical(sector) {
             None => {
-                return Err(io::Error::new(io::ErrorKind::NotFound, "cannot find the cached partition"))
+                return Err(io::Error::new(io::ErrorKind::NotFound, "cannot find the cached partition"));
             },
             Some(s) => s
         };

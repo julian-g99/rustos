@@ -90,29 +90,34 @@ impl<HANDLE: VFatHandle> Dir<HANDLE> {
     }
 }
 
-fn get_byte(num: u32, i: usize) -> u8 {
-    assert!(i <= 3);
-    let mask = 0x011 << ((4 - i) * 8);
-    (num & mask) as u8
-} 
+//fn get_byte(num: u32, i: usize) -> u8 {
+    //assert!(i <= 3);
+    //let mask = 0x011 << ((4 - i) * 8);
+    //(num & mask) as u8
+//} 
 
 impl<HANDLE: VFatHandle> EntryIterator<HANDLE> {
     fn new_from_dir(root: &Dir<HANDLE>) -> EntryIterator<HANDLE> {
-        let reached_end = false;
-        let dir_start = root.dir.first_cluster;
+        unimplemented!("EntryIterator::new_from_dir()")
+        //let reached_end = false;
+        //let dir_start = root.first_cluster;
 
-        loop {
-            let mut cluster_chain: Vec<u8> = Vec::new();
-            //root.vfat.read_chain(root.dir.first_cluster, &mut cluster_chain);
-            root.vfat.lock(|fat: &mut VFat<HANDLE>| {
-                fat.read_chain(root.first_cluster, &mut cluster_chain);
-            });
-            let entries = VecExt::cast::<u32>(cluster_chain);
-            for entry in entries {
-                let id = get_byte(entry, 0); //CHECK: is first byte little endian here?
-                let vfat_entry = entry as VFatDirEntry; //TODO: how do i do this cast?
-            }
-        }
+        //loop {
+            //let mut cluster_chain: Vec<u8> = Vec::new();
+            ////root.vfat.read_chain(root.dir.first_cluster, &mut cluster_chain);
+            //root.vfat.lock(|fat: &mut VFat<HANDLE>| {
+                //fat.read_chain(root.first_cluster, &mut cluster_chain);
+            //});
+            //let entries = VecExt::cast::<VFatDirEntry>(cluster_chain);
+            //for entry in entries {
+                //let unknown = unsafe {entry.unknown};
+                //match attribute {
+                    //0x10 => {
+
+                    //}
+                //}
+            //}
+        //}
     }
 }
 
