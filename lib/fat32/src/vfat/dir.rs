@@ -19,7 +19,9 @@ pub struct Dir<HANDLE: VFatHandle> {
 }
 
 pub struct EntryIterator<HANDLE: VFatHandle> {
-    dir: Dir<HANDLE>,
+    //dir: Dir<HANDLE>,
+    //curr_entry: Entry<HANDLE>
+    cluster: Vec<u8>,
     curr_entry: Entry<HANDLE>
 }
 
@@ -99,25 +101,7 @@ impl<HANDLE: VFatHandle> Dir<HANDLE> {
 impl<HANDLE: VFatHandle> EntryIterator<HANDLE> {
     fn new_from_dir(root: &Dir<HANDLE>) -> EntryIterator<HANDLE> {
         unimplemented!("EntryIterator::new_from_dir()")
-        //let reached_end = false;
-        //let dir_start = root.first_cluster;
-
-        //loop {
-            //let mut cluster_chain: Vec<u8> = Vec::new();
-            ////root.vfat.read_chain(root.dir.first_cluster, &mut cluster_chain);
-            //root.vfat.lock(|fat: &mut VFat<HANDLE>| {
-                //fat.read_chain(root.first_cluster, &mut cluster_chain);
-            //});
-            //let entries = VecExt::cast::<VFatDirEntry>(cluster_chain);
-            //for entry in entries {
-                //let unknown = unsafe {entry.unknown};
-                //match attribute {
-                    //0x10 => {
-
-                    //}
-                //}
-            //}
-        //}
+        //let cluster = 
     }
 }
 

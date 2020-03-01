@@ -3,6 +3,9 @@ use core::fmt;
 
 use self::Status::*;
 
+use shim::io;
+use shim::ioerr;
+
 #[derive(Debug, PartialEq)]
 pub enum Status {
     /// The FAT entry corresponds to an unused (free) cluster.
@@ -35,7 +38,14 @@ impl FatEntry {
         } else if val >= 0x0FFFFFF8 && val <= 0x0FFFFFFF {
             Eoc(val)
         } else {
-            Data(Cluster(val))
+            Data(Cluster::from(val))
+        }
+    }
+
+    pub fn get_data_sector(&self) -> io::Result<Cluster> {
+        match self.status() {
+            Data(cluster) => Ok(cluster),
+            _ => ioerr!(NotFound, "invalid fat entry")
         }
     }
 }
