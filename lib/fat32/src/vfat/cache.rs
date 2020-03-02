@@ -116,7 +116,8 @@ impl CachedPartition {
 
         if !self.cache.contains_key(&sector) {
             let mut buf = vec![0; self.device.sector_size() as usize];
-            self.device.read_sector(self.virtual_to_physical(sector).expect("virtual to physical address translation failed"), buf.as_mut_slice())?;
+            //self.device.read_sector(self.virtual_to_physical(sector).expect("virtual to physical address translation failed"), buf.as_mut_slice())?;
+            self.device.read_sector(sector, buf.as_mut_slice())?;
             self.cache.insert(sector, CacheEntry{data: buf, dirty: false});
         }
 

@@ -36,7 +36,7 @@ impl FatEntry {
         } else if val == 0x0FFFFFF7 {
             Bad
         } else if val >= 0x0FFFFFF8 && val <= 0x0FFFFFFF {
-            Eoc(val)
+            Eoc(val) //TODO: use actual Eoc
         } else {
             Data(Cluster::from(val))
         }

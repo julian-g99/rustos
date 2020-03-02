@@ -28,7 +28,7 @@ pub struct Time(u16);
 impl From::<&[u8]> for Time {
     fn from(slice: &[u8]) -> Self {
         assert_eq!(slice.len(), 2);
-        dbg!(slice);
+        //dbg!(slice);
         Time(((slice[1] as u16) << 8) + slice[0] as u16)
     }
 }

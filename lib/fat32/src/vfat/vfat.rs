@@ -121,7 +121,7 @@ impl<HANDLE: VFatHandle> VFat<HANDLE> {
         let mut clusters_read = 0;
         loop {
             match curr_entry.status() {
-                Status::Eoc(_) => {
+                Status::Eoc(val) => {
                     //TODO: read data from this cluster
                     let start_sector = curr_entry.get_data_sector()?.get_start_sector(self.sectors_per_cluster as u64, self.data_start_sector);
 
@@ -129,10 +129,12 @@ impl<HANDLE: VFatHandle> VFat<HANDLE> {
                         buf.extend_from_slice(self.device.get(i)?);
                     }
                     clusters_read += 1;
+                    println!("EOC: {}", val);
                     return Ok(clusters_read);
                 },
                 Status::Data(next) => {
                     //TODO: read data from this cluster
+                    println!("Data sector: {:?}", next);
                     let start_sector = curr_entry.get_data_sector()?.get_start_sector(self.sectors_per_cluster as u64, self.data_start_sector);
 
                     for i in start_sector..start_sector + self.sectors_per_cluster as u64 {
@@ -142,9 +144,18 @@ impl<HANDLE: VFatHandle> VFat<HANDLE> {
                     curr_entry = self.fat_entry(next)?;
                     clusters_read += 1;
                 },
-                _ => {
-                    return ioerr!(NotFound, "Encountered a cluster that's neither data nor EOC during read_chain()")
-                }
+                Status::Free => {
+                    //return ioerr!(NotFound, "Encountered a cluster that's neither data nor EOC during read_chain()")
+                    return ioerr!(NotFound, "Encountered a free during read_chain()");
+                },
+                Status::Bad => {
+                    //return ioerr!(NotFound, "Encountered a cluster that's neither data nor EOC during read_chain()")
+                    return ioerr!(NotFound, "Encountered a bad during read_chain()");
+                },
+                Status::Reserved => {
+                    //return ioerr!(NotFound, "Encountered a cluster that's neither data nor EOC during read_chain()")
+                    return ioerr!(NotFound, "Encountered a reserved during read_chain()");
+                },
             }
         }
         //let mut fat_buf = Vec::new();
@@ -160,7 +171,6 @@ impl<HANDLE: VFatHandle> VFat<HANDLE> {
     fn fat_entry(&mut self, cluster: Cluster) -> io::Result<FatEntry> { //TODO: i removed the reference on FatEntry
         let mut buf = Vec::new();
         //let sector = self.device.get(self.fat_start_sector)?;
-        println!("fat start: {}, fat_end: {}", self.fat_start_sector, self.fat_start_sector + self.sectors_per_fat as u64);
         for i in self.fat_start_sector..self.fat_start_sector + self.sectors_per_fat as u64 {
             buf.extend_from_slice(self.device.get(i)?);
         }
