@@ -12,6 +12,21 @@ pub struct File<HANDLE: VFatHandle> {
     pub metadata: Metadata
 }
 
+
+impl<HANDLE: VFatHandle> File<HANDLE> {
+    pub fn new(vfat: HANDLE, first_cluster: Cluster, metadata: Metadata) -> Self{
+        File{vfat, first_cluster, metadata}
+    }
+
+    pub fn is_end(&self) -> bool {
+        self.metadata.is_end()
+    }
+
+    pub fn get_name_utf8(&self) -> io::Result<String> {
+        self.metadata.get_file_string_utf8()
+    }
+}
+
 // FIXME: Implement `traits::File` (and its supertraits) for `File`.
 impl<HANDLE: VFatHandle> traits::File for File<HANDLE> {
     fn sync(&mut self) -> io::Result<()> {

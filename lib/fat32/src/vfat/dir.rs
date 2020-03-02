@@ -5,6 +5,7 @@ use shim::const_assert_size;
 use shim::ffi::OsStr;
 use shim::io;
 use shim::newioerr;
+use shim::ioerr;
 
 use crate::traits;
 use crate::util::VecExt;
@@ -13,16 +14,32 @@ use crate::vfat::{Cluster, Entry, File, VFatHandle, VFat};
 
 #[derive(Debug)]
 pub struct Dir<HANDLE: VFatHandle> {
-    pub vfat: HANDLE,
+    vfat: HANDLE,
     first_cluster: Cluster,
     metadata: Metadata
+}
+
+impl<HANDLE: VFatHandle> Dir<HANDLE> {
+    pub fn new(vfat: HANDLE, first_cluster: Cluster, metadata: Metadata) -> Self{
+        Dir{vfat, first_cluster, metadata}
+    }
+
+    pub fn is_end(&self) -> bool {
+        self.metadata.is_end()
+    }
+
+    pub fn get_name_utf8(&self) -> io::Result<String> {
+        self.metadata.get_file_string_utf8()
+    }
 }
 
 pub struct EntryIterator<HANDLE: VFatHandle> {
     //dir: Dir<HANDLE>,
     //curr_entry: Entry<HANDLE>
-    cluster: Vec<u8>,
-    curr_entry: Entry<HANDLE>
+    chain: Vec<u8>,
+    vfat: HANDLE,
+    //curr_entry: Entry<HANDLE>
+    index: usize
 }
 
 #[repr(C, packed)]
@@ -32,7 +49,7 @@ pub struct VFatRegularDirEntry {
     file_extension: [u8; 3],
     attribute: Attributes,
     reserved: u8,
-    creation_time_10th_second: u16,
+    creation_time_10th_second: u8,
     creation_time: Time,
     creation_date: Date,
     last_access_date: Date,
@@ -40,7 +57,7 @@ pub struct VFatRegularDirEntry {
     last_modification_time: Time,
     last_modification_date: Date,
     first_cluster_low: u16,
-    file_size: u16
+    file_size: u32
 }
 
 //const_assert_size!(VFatRegularDirEntry, 32);
@@ -65,7 +82,7 @@ pub struct VFatLfnDirEntry {
 pub struct VFatUnknownDirEntry {
     file_name_or_extension: [u8; 11],
     attribute: Attributes,
-    other_info: [u8; 24]
+    other_info: [u8; 20]
 }
 
 //const_assert_size!(VFatUnknownDirEntry, 32);
@@ -88,7 +105,18 @@ impl<HANDLE: VFatHandle> Dir<HANDLE> {
     /// If `name` contains invalid UTF-8 characters, an error of `InvalidInput`
     /// is returned.
     pub fn find<P: AsRef<OsStr>>(&self, name: P) -> io::Result<Entry<HANDLE>> {
-        unimplemented!("Dir::find()")
+        use traits::Dir;
+        for entry in self.entries()? {
+            let file_name = String::from(entry.get_name_utf8()?);
+            let queried_name = match name.as_ref().to_str() {
+                Some(s) => s,
+                None => return ioerr!(NotFound, "input in Dir::find() isn't valid unicode")
+            };
+            if file_name.eq_ignore_ascii_case(queried_name) {
+                return Ok(entry);
+            }
+        }
+        ioerr!(NotFound, "failed to find file in Dir::find()")
     }
 }
 
@@ -100,15 +128,29 @@ impl<HANDLE: VFatHandle> Dir<HANDLE> {
 
 impl<HANDLE: VFatHandle> EntryIterator<HANDLE> {
     fn new_from_dir(root: &Dir<HANDLE>) -> EntryIterator<HANDLE> {
-        unimplemented!("EntryIterator::new_from_dir()")
-        //let cluster = 
+        //unimplemented!("EntryIterator::new_from_dir()")
+        let vfat = root.vfat.clone();
+        let mut chain: Vec<u8> = Vec::new();
+        vfat.lock(|fat: &mut VFat<HANDLE>| {
+            fat.read_chain(root.first_cluster, &mut chain).expect("failed to read chain in EntryIterator::new_from_dir()");
+        });
+
+        //let curr_entry = Entry::new(&chain[..32], vfat.clone());
+
+        EntryIterator{vfat, chain, index: 0}
     }
 }
 
 impl<HANDLE: VFatHandle> Iterator for EntryIterator<HANDLE> {
     type Item = Entry<HANDLE>;
     fn next(&mut self) -> Option<Self::Item> {
-        unimplemented!("DirIterator::next()")
+        let entry = Entry::new(&(self.chain[self.index .. self.index + 32]), self.vfat.clone());
+        if entry.is_end() {
+            None
+        } else {
+            self.index += 1;
+            Some(entry)
+        }
     }
 }
 

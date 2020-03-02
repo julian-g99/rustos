@@ -14,7 +14,7 @@ use crate::mbr::MasterBootRecord;
 use crate::traits::{BlockDevice, FileSystem};
 use crate::util::{SliceExt, VecExt};
 use crate::vfat::{BiosParameterBlock, CachedPartition, Partition};
-use crate::vfat::{Cluster, Dir, Entry, Error, FatEntry, File, Status};
+use crate::vfat::{Cluster, Dir, Entry, Error, FatEntry, File, Status, Metadata};
 
 /// A generic trait that handles a critical section as a closure
 pub trait VFatHandle: Clone + Debug + Send + Sync {
@@ -115,7 +115,7 @@ impl<HANDLE: VFatHandle> VFat<HANDLE> {
         for i in self.fat_start_sector..self.fat_start_sector + self.sectors_per_cluster as u64 {
             fat_buf.extend_from_slice(self.device.get(i)?);
         }
-        let fat = unsafe{ fat_buf.cast::<u32>() };
+        //let fat = unsafe{ fat_buf.cast::<u32>() };
 
         let mut curr_entry = self.fat_entry(start)?;
         let mut clusters_read = 0;
@@ -158,19 +158,39 @@ impl<HANDLE: VFatHandle> VFat<HANDLE> {
     
     ///A method to return a reference to a `FatEntry` for a cluster where the reference points directly into a cached sector.
     fn fat_entry(&mut self, cluster: Cluster) -> io::Result<FatEntry> { //TODO: i removed the reference on FatEntry
-        let sector = self.device.get(self.fat_start_sector)?;
-        let entry_value = sector[cluster.inner() as usize * size_of::<u32>()];
+        let mut buf = Vec::new();
+        //let sector = self.device.get(self.fat_start_sector)?;
+        println!("fat start: {}, fat_end: {}", self.fat_start_sector, self.fat_start_sector + self.sectors_per_fat as u64);
+        for i in self.fat_start_sector..self.fat_start_sector + self.sectors_per_fat as u64 {
+            buf.extend_from_slice(self.device.get(i)?);
+        }
+        let entry_value = buf[cluster.inner() as usize * size_of::<u32>()];
         Ok(FatEntry(entry_value as u32))
     }
     
 }
 
 impl<'a, HANDLE: VFatHandle> FileSystem for &'a HANDLE {
-    type File = crate::traits::Dummy;
-    type Dir = crate::traits::Dummy;
-    type Entry = crate::traits::Dummy;
+    //type File = crate::traits::Dummy;
+    //type Dir = crate::traits::Dummy;
+    //type Entry = crate::traits::Dummy;
+    type File = File<HANDLE>;
+    type Dir = Dir<HANDLE>;
+    type Entry = Entry<HANDLE>;
 
     fn open<P: AsRef<Path>>(self, path: P) -> io::Result<Self::Entry> {
-        unimplemented!("FileSystem::open()")
+        //unimplemented!("FileSystem::open()")
+
+        let first_cluster = self.lock(|fat: &mut VFat<HANDLE>| -> Cluster {
+            fat.rootdir_cluster
+        });
+        let metadata = self.lock(|fat: &mut VFat<HANDLE>| -> Metadata {
+            let mut buf = vec![0u8; 32];
+            fat.read_cluster(first_cluster, 0, buf.as_mut_slice()).unwrap();
+            Metadata::from(buf.as_slice())
+        });
+
+        let dir: Dir<HANDLE> = Dir::new(self.clone(), first_cluster, metadata);
+        dir.find(path.as_ref().as_os_str())
     }
 }

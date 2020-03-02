@@ -16,4 +16,15 @@ impl Cluster {
     pub fn inner(&self) -> u32 {
         self.0
     }
+
+    pub fn first_cluster_of_entry(slice: &[u8]) -> Self{
+        assert_eq!(slice.len(), 32);
+        let high = &slice[20..22];
+        let low = &slice[26..28];
+
+        let high_val = (high[1] as u32) << 8 + (high[0] as u32);
+        let low_val = (low[1] as u32) << 8 + (low[0] as u32);
+
+        Cluster::from(high_val << 16 + low_val)
+    }
 }

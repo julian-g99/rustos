@@ -67,6 +67,7 @@ impl CachedPartition {
     /// Returns `None` if the virtual sector number is out of range.
     fn virtual_to_physical(&self, virt: u64) -> Option<u64> {
         if virt >= self.partition.num_sectors {
+            println!("Virtual is: {}, there are {} sectors", virt, self.partition.num_sectors);
             return None;
         }
 
