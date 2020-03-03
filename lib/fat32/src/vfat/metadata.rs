@@ -16,7 +16,7 @@ pub struct Date(u16);
 impl From::<&[u8]> for Date {
     fn from(slice: &[u8]) -> Self {
         assert_eq!(slice.len(), 2);
-        Date((slice[1] as u16) << 8 + slice[0] as u16)
+        Date(((slice[1] as u16) << 8) + slice[0] as u16)
     }
 }
 
@@ -74,7 +74,8 @@ impl Timestamp {
 }
 
 /// Metadata for a directory entry.
-#[derive(Default, Debug, Clone)]
+//#[derive(Default, Debug, Clone)]
+#[derive(Default, Clone)]
 pub struct Metadata {
     //file_name: [u8; 8],
     //file_extension: [u8; 3],
@@ -90,6 +91,15 @@ pub struct Metadata {
     last_modification_date: Timestamp,
     //first_cluster_low_16: u16,
     file_size: u32
+}
+
+impl fmt::Debug for Metadata {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        //write!(f, "id: {}, file name: {}, file extension: {}, attributes: {:?}, creation time: {:?}, last_access_date: {:?}, last_modification_date: {:?}, file_size: {}",
+            //self.id, std::str::from_utf8(&self.file_name), std::str::from_utf8(&self.file_extension), self.attribute, self.creation_time, self.last_access_date, self.last_modification_date, self.file_size)
+        write!(f, "id: {}, file name: {}, file extension: {}, file_size: {}",
+            self.id, std::str::from_utf8(&self.file_name).unwrap(), std::str::from_utf8(&self.file_extension).unwrap(), self.file_size)
+    }
 }
 
 fn u8_to_u32 (slice: &[u8]) -> u32{

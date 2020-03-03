@@ -72,7 +72,7 @@ impl<HANDLE: VFatHandle> VFat<HANDLE> {
         let partition = Partition{start: first_sector as u64 + ebpb.num_reserved_sectors as u64, num_sectors: ebpb.sectors_per_fat as u64, sector_size: ebpb.bytes_per_sector as u64};
         let vfat = VFat{phantom: PhantomData, device: CachedPartition::new(device, partition), bytes_per_sector: ebpb.bytes_per_sector,
                         sectors_per_cluster: ebpb.sectors_per_cluster, sectors_per_fat: ebpb.sectors_per_fat,
-                        fat_start_sector: first_sector as u64 + ebpb.num_reserved_sectors as u64, data_start_sector: first_sector as u64 + ebpb.num_reserved_sectors as u64 + ebpb.num_fats as u64, rootdir_cluster: Cluster::from(ebpb.rootdir_cluster as u32)};
+                        fat_start_sector: first_sector as u64 + ebpb.num_reserved_sectors as u64, data_start_sector: first_sector as u64 + ebpb.num_reserved_sectors as u64 + ebpb.num_fats as u64 * ebpb.sectors_per_fat as u64, rootdir_cluster: Cluster::from(ebpb.rootdir_cluster as u32)};
         Ok(HANDLE::new(vfat))
     }
 
@@ -168,14 +168,18 @@ impl<HANDLE: VFatHandle> VFat<HANDLE> {
     }
     
     ///A method to return a reference to a `FatEntry` for a cluster where the reference points directly into a cached sector.
-    fn fat_entry(&mut self, cluster: Cluster) -> io::Result<FatEntry> { //TODO: i removed the reference on FatEntry
+    fn fat_entry(&mut self, cluster: Cluster) -> io::Result<&FatEntry> { //TODO: i removed the reference on FatEntry
         let mut buf = Vec::new();
         //let sector = self.device.get(self.fat_start_sector)?;
         for i in self.fat_start_sector..self.fat_start_sector + self.sectors_per_fat as u64 {
             buf.extend_from_slice(self.device.get(i)?);
         }
-        let entry_value = buf[cluster.inner() as usize * size_of::<u32>()];
-        Ok(FatEntry(entry_value as u32))
+        //let fat = unsafe {buf.as_slice().cast::<FatEntry>()};
+        ////let entry_value = fat[cluster.inner() as usize];
+        //Ok(&fat[cluster.inner() as usize])
+        unsafe {
+            return Ok(&(buf.as_slice().cast::<FatEntry>()[cluster.inner() as usize]));
+        }
     }
     
 }

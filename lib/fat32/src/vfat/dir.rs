@@ -1,6 +1,8 @@
 use alloc::string::String;
 use alloc::vec::Vec;
 
+use core::fmt;
+
 use shim::const_assert_size;
 use shim::ffi::OsStr;
 use shim::io;
@@ -18,6 +20,7 @@ pub struct Dir<HANDLE: VFatHandle> {
     first_cluster: Cluster,
     metadata: Metadata
 }
+
 
 impl<HANDLE: VFatHandle> Dir<HANDLE> {
     pub fn new(vfat: HANDLE, first_cluster: Cluster, metadata: Metadata) -> Self{
@@ -129,6 +132,7 @@ impl<HANDLE: VFatHandle> Dir<HANDLE> {
 impl<HANDLE: VFatHandle> EntryIterator<HANDLE> {
     fn new_from_dir(root: &Dir<HANDLE>) -> EntryIterator<HANDLE> {
         //unimplemented!("EntryIterator::new_from_dir()")
+        dbg!(root);
         let vfat = root.vfat.clone();
         let mut chain: Vec<u8> = Vec::new();
         vfat.lock(|fat: &mut VFat<HANDLE>| {
