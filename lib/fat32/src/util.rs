@@ -96,7 +96,7 @@ fn calc_new_len<T, U>(slice: &[T]) -> usize {
 
 impl<T> SliceExt for [T] {
     unsafe fn cast<'a, U>(&'a self) -> &'a [U] {
-        assert!(align_of::<T>() % align_of::<U>() == 0);
+        //assert!(align_of::<T>() % align_of::<U>() == 0);
 
         let new_len = calc_new_len::<T, U>(self);
         let new_ptr = self.as_ptr() as *const U;

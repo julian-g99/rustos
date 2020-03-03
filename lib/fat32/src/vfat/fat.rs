@@ -42,12 +42,12 @@ impl FatEntry {
         }
     }
 
-    pub fn get_data_sector(&self) -> io::Result<Cluster> {
-        match self.status() {
-            Data(cluster) => Ok(cluster),
-            _ => ioerr!(NotFound, "invalid fat entry")
-        }
-    }
+    //pub fn get_data_sector(&self) -> io::Result<Cluster> {
+        //match self.status() {
+            //Data(cluster) => Ok(cluster),
+            //_ => ioerr!(NotFound, "invalid fat entry")
+        //}
+    //}
 }
 
 impl fmt::Debug for FatEntry {

@@ -35,6 +35,15 @@ impl<HANDLE: VFatHandle> Entry<HANDLE> {
             //},
         //}
     }
+
+
+    pub fn new_from_dir(dir: Dir<HANDLE>) -> Self {
+        Entry::Dir(dir)
+    }
+
+    pub fn new_from_file(file: File<HANDLE>) -> Self {
+        Entry::File(file)
+    }
 }
 
 impl<HANDLE: VFatHandle> Entry<HANDLE> {
@@ -49,7 +58,7 @@ impl<HANDLE: VFatHandle> Entry<HANDLE> {
         }
     }
 
-    pub fn get_name_utf8(&self) -> io::Result<String> {
+    pub fn get_name_utf8(&self) -> io::Result<&str> {
         match self {
             Entry::Dir(d) => {
                 d.get_name_utf8()
@@ -69,26 +78,44 @@ impl<HANDLE: VFatHandle> traits::Entry for Entry<HANDLE> {
     type Metadata = Metadata;
 
     fn name(&self) -> &str {
-        unimplemented!("Entry::name()")
+        match self {
+            Entry::Dir(d) => d.get_name_utf8().unwrap(),
+            Entry::File(f) => f.get_name_utf8().unwrap()
+        }
     }
 
     fn metadata(&self) -> &Self::Metadata {
-        unimplemented!("Entry::metadata()")
+        match self {
+            Entry::Dir(d) => d.get_metadata(),
+            Entry::File(f) => f.get_metadata(),
+        }
     }
 
     fn as_file(&self) -> Option<&File<HANDLE>> {
-        unimplemented!("Entry::as_file()")
+        match self {
+            Entry::File(f) => Some(&f),
+            _ => None
+        }
     }
 
     fn as_dir(&self) -> Option<&Dir<HANDLE>> {
-        unimplemented!("Entry::as_dir()")
+        match self {
+            Entry::Dir(d) => Some(&d),
+            _ => None
+        }
     }
 
     fn into_file(self) -> Option<File<HANDLE>> {
-        unimplemented!("Entry::into_file()")
+        match self {
+            Entry::File(f) => Some(f),
+            _ => None
+        }
     }
 
     fn into_dir(self) -> Option<Dir<HANDLE>> {
-        unimplemented!("Entry::into_dir()")
+        match self {
+            Entry::Dir(d) => Some(d),
+            _ => None
+        }
     }
 }

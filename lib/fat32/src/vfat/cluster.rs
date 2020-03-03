@@ -22,9 +22,9 @@ impl Cluster {
         let high = &slice[20..22];
         let low = &slice[26..28];
 
-        let high_val = (high[1] as u32) << 8 + (high[0] as u32);
-        let low_val = (low[1] as u32) << 8 + (low[0] as u32);
+        let high_val = ((high[1] as u32) << 8) + (high[0] as u32);
+        let low_val = ((low[1] as u32) << 8 )+ (low[0] as u32);
 
-        Cluster::from(high_val << 16 + low_val)
+        Cluster::from((high_val << 16) + low_val)
     }
 }

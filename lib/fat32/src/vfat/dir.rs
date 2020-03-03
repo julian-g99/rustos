@@ -31,8 +31,12 @@ impl<HANDLE: VFatHandle> Dir<HANDLE> {
         self.metadata.is_end()
     }
 
-    pub fn get_name_utf8(&self) -> io::Result<String> {
+    pub fn get_name_utf8(&self) -> io::Result<&str> {
         self.metadata.get_file_string_utf8()
+    }
+    
+    pub fn get_metadata(&self) -> &Metadata {
+        &self.metadata
     }
 }
 
@@ -108,8 +112,10 @@ impl<HANDLE: VFatHandle> Dir<HANDLE> {
     /// If `name` contains invalid UTF-8 characters, an error of `InvalidInput`
     /// is returned.
     pub fn find<P: AsRef<OsStr>>(&self, name: P) -> io::Result<Entry<HANDLE>> {
+        println!("The file being queried: {}", name.as_ref().to_str().unwrap());
         use traits::Dir;
         for entry in self.entries()? {
+            dbg!(&entry);
             let file_name = String::from(entry.get_name_utf8()?);
             let queried_name = match name.as_ref().to_str() {
                 Some(s) => s,
@@ -132,7 +138,7 @@ impl<HANDLE: VFatHandle> Dir<HANDLE> {
 impl<HANDLE: VFatHandle> EntryIterator<HANDLE> {
     fn new_from_dir(root: &Dir<HANDLE>) -> EntryIterator<HANDLE> {
         //unimplemented!("EntryIterator::new_from_dir()")
-        dbg!(root);
+        //dbg!(root);
         let vfat = root.vfat.clone();
         let mut chain: Vec<u8> = Vec::new();
         vfat.lock(|fat: &mut VFat<HANDLE>| {
@@ -152,7 +158,7 @@ impl<HANDLE: VFatHandle> Iterator for EntryIterator<HANDLE> {
         if entry.is_end() {
             None
         } else {
-            self.index += 1;
+            self.index += 32;
             Some(entry)
         }
     }

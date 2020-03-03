@@ -146,7 +146,8 @@ impl Metadata {
         self.id == 0x00
     }
 
-    pub fn get_file_string_utf8(&self) -> io::Result<String> {
+    //pub fn get_file_string_utf8(&self) -> io::Result<String> {
+    pub fn get_file_string_utf8(&self) -> io::Result<&str> {
         let name = match from_utf8(&self.file_name) {
             Err(_) => {
                 return ioerr!(Other, "parsing file name (regular) to string failed");
@@ -160,7 +161,7 @@ impl Metadata {
             Ok(s) => s
         };
 
-        Ok(format!("{}.{}", name, extension))
+        Ok(format!("{}.{}", name, extension).as_str())
     }
 }
 

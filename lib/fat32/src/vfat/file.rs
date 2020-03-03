@@ -22,8 +22,12 @@ impl<HANDLE: VFatHandle> File<HANDLE> {
         self.metadata.is_end()
     }
 
-    pub fn get_name_utf8(&self) -> io::Result<String> {
+    pub fn get_name_utf8(&self) -> io::Result<&str> {
         self.metadata.get_file_string_utf8()
+    }
+
+    pub fn get_metadata(&self) -> &Metadata {
+        &self.metadata
     }
 }
 

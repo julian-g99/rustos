@@ -8,6 +8,7 @@ use shim::io;
 use shim::ioerr;
 use shim::newioerr;
 use shim::path;
+use shim::path::Component;
 use shim::path::Path;
 
 use crate::mbr::MasterBootRecord;
@@ -117,13 +118,15 @@ impl<HANDLE: VFatHandle> VFat<HANDLE> {
         }
         //let fat = unsafe{ fat_buf.cast::<u32>() };
 
-        let mut curr_entry = self.fat_entry(start)?;
+        //let mut curr_entry = self.fat_entry(start)?;
+        let mut curr_cluster = start;
         let mut clusters_read = 0;
         loop {
-            match curr_entry.status() {
+            match self.fat_entry(curr_cluster)?.status() {
                 Status::Eoc(val) => {
                     //TODO: read data from this cluster
-                    let start_sector = curr_entry.get_data_sector()?.get_start_sector(self.sectors_per_cluster as u64, self.data_start_sector);
+                    //let start_sector = curr_entry.get_data_sector()?.get_start_sector(self.sectors_per_cluster as u64, self.data_start_sector);
+                    let start_sector = curr_cluster.get_start_sector(self.sectors_per_cluster as u64, self.data_start_sector);
 
                     for i in start_sector..start_sector + self.sectors_per_cluster as u64 {
                         buf.extend_from_slice(self.device.get(i)?);
@@ -135,25 +138,23 @@ impl<HANDLE: VFatHandle> VFat<HANDLE> {
                 Status::Data(next) => {
                     //TODO: read data from this cluster
                     println!("Data sector: {:?}", next);
-                    let start_sector = curr_entry.get_data_sector()?.get_start_sector(self.sectors_per_cluster as u64, self.data_start_sector);
+                    //let start_sector = curr_entry.get_data_sector()?.get_start_sector(self.sectors_per_cluster as u64, self.data_start_sector);
+                    let start_sector = curr_cluster.get_start_sector(self.sectors_per_cluster as u64, self.data_start_sector);
 
                     for i in start_sector..start_sector + self.sectors_per_cluster as u64 {
                         buf.extend_from_slice(self.device.get(i)?);
                     }
 
-                    curr_entry = self.fat_entry(next)?;
+                    curr_cluster = next;
                     clusters_read += 1;
                 },
                 Status::Free => {
-                    //return ioerr!(NotFound, "Encountered a cluster that's neither data nor EOC during read_chain()")
                     return ioerr!(NotFound, "Encountered a free during read_chain()");
                 },
                 Status::Bad => {
-                    //return ioerr!(NotFound, "Encountered a cluster that's neither data nor EOC during read_chain()")
                     return ioerr!(NotFound, "Encountered a bad during read_chain()");
                 },
                 Status::Reserved => {
-                    //return ioerr!(NotFound, "Encountered a cluster that's neither data nor EOC during read_chain()")
                     return ioerr!(NotFound, "Encountered a reserved during read_chain()");
                 },
             }
@@ -168,7 +169,7 @@ impl<HANDLE: VFatHandle> VFat<HANDLE> {
     }
     
     ///A method to return a reference to a `FatEntry` for a cluster where the reference points directly into a cached sector.
-    fn fat_entry(&mut self, cluster: Cluster) -> io::Result<&FatEntry> { //TODO: i removed the reference on FatEntry
+    fn fat_entry(&mut self, cluster: Cluster) -> io::Result<FatEntry> { //TODO: i removed the reference on FatEntry
         let mut buf = Vec::new();
         //let sector = self.device.get(self.fat_start_sector)?;
         for i in self.fat_start_sector..self.fat_start_sector + self.sectors_per_fat as u64 {
@@ -177,9 +178,11 @@ impl<HANDLE: VFatHandle> VFat<HANDLE> {
         //let fat = unsafe {buf.as_slice().cast::<FatEntry>()};
         ////let entry_value = fat[cluster.inner() as usize];
         //Ok(&fat[cluster.inner() as usize])
-        unsafe {
-            return Ok(&(buf.as_slice().cast::<FatEntry>()[cluster.inner() as usize]));
-        }
+        //unsafe {
+            ////return Ok(&(buf.as_slice().cast::<FatEntry>()[cluster.inner() as usize]));
+        //}
+        let fat = unsafe{ buf.as_slice().cast::<u32>() };
+        Ok(FatEntry(fat[cluster.inner() as usize]))
     }
     
 }
@@ -194,6 +197,7 @@ impl<'a, HANDLE: VFatHandle> FileSystem for &'a HANDLE {
 
     fn open<P: AsRef<Path>>(self, path: P) -> io::Result<Self::Entry> {
         //unimplemented!("FileSystem::open()")
+        //TODO: atm only deals with absolute path
 
         let first_cluster = self.lock(|fat: &mut VFat<HANDLE>| -> Cluster {
             fat.rootdir_cluster
@@ -204,7 +208,12 @@ impl<'a, HANDLE: VFatHandle> FileSystem for &'a HANDLE {
             Metadata::from(buf.as_slice())
         });
 
-        let dir: Dir<HANDLE> = Dir::new(self.clone(), first_cluster, metadata);
-        dir.find(path.as_ref().as_os_str())
+        let mut curr_dir: Dir<HANDLE> = Dir::new(self.clone(), first_cluster, metadata);
+        for comp in path.as_ref().components() {
+            if comp == Component::RootDir {
+                return Ok(Entry::new_from_dir(curr_dir));
+            }
+        }
+        curr_dir.find(path.as_ref().as_os_str())
     }
 }
