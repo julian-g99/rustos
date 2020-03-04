@@ -9,13 +9,15 @@ use crate::vfat::{Cluster, Metadata, VFatHandle};
 pub struct File<HANDLE: VFatHandle> {
     pub vfat: HANDLE,
     pub first_cluster: Cluster,
-    pub metadata: Metadata
+    pub metadata: Metadata,
+    name: String
 }
 
 
 impl<HANDLE: VFatHandle> File<HANDLE> {
     pub fn new(vfat: HANDLE, first_cluster: Cluster, metadata: Metadata) -> Self{
-        File{vfat, first_cluster, metadata}
+        let name = metadata.get_file_string_utf8().expect("file name failed");
+        File{vfat, first_cluster, metadata, name}
     }
 
     pub fn is_end(&self) -> bool {
@@ -23,7 +25,8 @@ impl<HANDLE: VFatHandle> File<HANDLE> {
     }
 
     pub fn get_name_utf8(&self) -> io::Result<&str> {
-        self.metadata.get_file_string_utf8()
+        //self.metadata.get_file_string_utf8()
+        Ok(self.name.as_str())
     }
 
     pub fn get_metadata(&self) -> &Metadata {

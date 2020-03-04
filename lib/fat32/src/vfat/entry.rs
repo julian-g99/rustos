@@ -1,5 +1,5 @@
 use crate::traits;
-use crate::vfat::{Dir, File, Metadata, VFatHandle, Cluster};
+use crate::vfat::{Dir, File, Metadata, VFatHandle, Cluster, dir::VFatDirEntry, dir::VFatUnknownDirEntry, dir::VFatRegularDirEntry};
 use core::fmt;
 use shim::io;
 

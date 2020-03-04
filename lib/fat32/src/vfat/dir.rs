@@ -4,13 +4,14 @@ use alloc::vec::Vec;
 use core::fmt;
 
 use shim::const_assert_size;
+use std::char::decode_utf16;
 use shim::ffi::OsStr;
 use shim::io;
 use shim::newioerr;
 use shim::ioerr;
 
 use crate::traits;
-use crate::util::VecExt;
+use crate::util::{SliceExt, VecExt};
 use crate::vfat::{Attributes, Date, Metadata, Time, Timestamp};
 use crate::vfat::{Cluster, Entry, File, VFatHandle, VFat};
 
@@ -18,13 +19,15 @@ use crate::vfat::{Cluster, Entry, File, VFatHandle, VFat};
 pub struct Dir<HANDLE: VFatHandle> {
     vfat: HANDLE,
     first_cluster: Cluster,
-    metadata: Metadata
+    metadata: Metadata,
+    name: String
 }
 
 
 impl<HANDLE: VFatHandle> Dir<HANDLE> {
     pub fn new(vfat: HANDLE, first_cluster: Cluster, metadata: Metadata) -> Self{
-        Dir{vfat, first_cluster, metadata}
+        let name = metadata.get_file_string_utf8().expect("dir name failed");
+        Dir{vfat, first_cluster, metadata, name}
     }
 
     pub fn is_end(&self) -> bool {
@@ -32,7 +35,8 @@ impl<HANDLE: VFatHandle> Dir<HANDLE> {
     }
 
     pub fn get_name_utf8(&self) -> io::Result<&str> {
-        self.metadata.get_file_string_utf8()
+        //self.metadata.get_file_string_utf8(
+        Ok(self.name.as_str())
     }
     
     pub fn get_metadata(&self) -> &Metadata {
@@ -43,7 +47,7 @@ impl<HANDLE: VFatHandle> Dir<HANDLE> {
 pub struct EntryIterator<HANDLE: VFatHandle> {
     //dir: Dir<HANDLE>,
     //curr_entry: Entry<HANDLE>
-    chain: Vec<u8>,
+    chain: Vec<VFatDirEntry>,
     vfat: HANDLE,
     //curr_entry: Entry<HANDLE>
     index: usize
@@ -73,7 +77,7 @@ pub struct VFatRegularDirEntry {
 #[derive(Copy, Clone)]
 pub struct VFatLfnDirEntry {
     sequence_number: u8,
-    file_name: [u8; 10],
+    first_name: [u8; 10],
     attribute: Attributes,
     file_type: u8,
     checksum: u8,
@@ -140,10 +144,12 @@ impl<HANDLE: VFatHandle> EntryIterator<HANDLE> {
         //unimplemented!("EntryIterator::new_from_dir()")
         //dbg!(root);
         let vfat = root.vfat.clone();
-        let mut chain: Vec<u8> = Vec::new();
+        let mut buf: Vec<u8> = Vec::new();
         vfat.lock(|fat: &mut VFat<HANDLE>| {
-            fat.read_chain(root.first_cluster, &mut chain).expect("failed to read chain in EntryIterator::new_from_dir()");
+            fat.read_chain(root.first_cluster, &mut buf).expect("failed to read chain in EntryIterator::new_from_dir()");
         });
+
+        let chain = unsafe {buf.cast::<VFatDirEntry>()};
 
         //let curr_entry = Entry::new(&chain[..32], vfat.clone());
 
@@ -151,16 +157,79 @@ impl<HANDLE: VFatHandle> EntryIterator<HANDLE> {
     }
 }
 
+fn decode_name_from_slice(slice: &[u8]) -> io::Result<String> {
+    let mut output = String::new();
+    let iter = unsafe {decode_utf16(slice.cast::<u16>().iter().cloned())};
+    for i in iter {
+        match i {
+            Ok('\u{0000}') => break,
+            Ok('\u{ffff}') => break,
+            Ok(c) => output.push(c),
+            Err(e) => {return ioerr!(Other, "cannot decode utf16 string")}
+        }
+    }
+    return Ok(output)
+}
+
+fn combine_string(vec: &Vec<String>) -> String {
+    let mut output = String::new();
+    for s in vec {
+        output += s;
+    }
+    output
+}
+
 impl<HANDLE: VFatHandle> Iterator for EntryIterator<HANDLE> {
     type Item = Entry<HANDLE>;
     fn next(&mut self) -> Option<Self::Item> {
-        let entry = Entry::new(&(self.chain[self.index .. self.index + 32]), self.vfat.clone());
-        if entry.is_end() {
-            None
-        } else {
-            self.index += 32;
-            Some(entry)
-        }
+        //let entry = Entry::new(&(self.chain[self.index .. self.index + 32]), self.vfat.clone());
+        //if entry.is_end() {
+            //None
+        //} else {
+            //self.index += 32;
+            //Some(entry)
+        //}
+        //let entry = unsafe {*(&self.chain[self.index .. self.index + 32] as *const VFatDirEntry)};
+        //
+
+        //let entry = unsafe {self.chain[self.index].unknown};
+        //if entry.attribute.is_lfn() {
+            //let vec: Vec<String> = Vec::new();
+            //let mut length = 0;
+            //loop {
+                //let lfn_entry = unsafe {self.chain[self.index].long_filename};
+                //self.index += 1;
+                //if lfn_entry.sequence_number > length {
+                    //length = lfn_entry.sequence_number;
+                //}
+                //let final_name = String::new();
+                //match decode_name_from_slice(&lfn_entry.first_name) {
+                    //Ok(s) => final_name.push_str(s.as_str()),
+                    //Err(_) => return None
+                //};
+                //match decode_name_from_slice(&lfn_entry.first_name) {
+                    //Ok(s) => final_name.push_str(s.as_str()),
+                    //Err(_) => return None
+                //};
+                //match decode_name_from_slice(&lfn_entry.first_name) {
+                    //Ok(s) => final_name.push_str(s.as_str()),
+                    //Err(_) => return None
+                //};
+                //if vec.len() < lfn_entry.sequence_number as usize {
+                    //vec.resize(lfn_entry.sequence_number as usize, String::from(""));
+                //}
+                //vec.insert(lfn_entry.sequence_number as usize, final_name);
+
+                //if lfn_entry.sequence_number == 1 {
+                    //break;
+                //}
+            //}
+            //let lfn_name = combine_string(&vec);
+            //return Some(Entry::new_from_file(File::new(handle, )))
+        //} else {
+            //let regular_entry = unsafe {entry.regular};
+        //}
+        unimplemented!("next function for EntryIterator")
     }
 }
 

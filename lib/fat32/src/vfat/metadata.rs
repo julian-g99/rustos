@@ -48,6 +48,10 @@ impl Attributes {
     pub fn is_dir(&self) -> bool {
         self.0 == 0x10
     }
+
+    pub fn is_lfn(&self) -> bool {
+        self.0 == 0x0F
+    }
 }
 
 /// A structure containing a date and time.
@@ -146,8 +150,8 @@ impl Metadata {
         self.id == 0x00
     }
 
-    //pub fn get_file_string_utf8(&self) -> io::Result<String> {
-    pub fn get_file_string_utf8(&self) -> io::Result<&str> {
+    pub fn get_file_string_utf8(&self) -> io::Result<String> {
+    //pub fn get_file_string_utf8(&self) -> io::Result<&str> {
         let name = match from_utf8(&self.file_name) {
             Err(_) => {
                 return ioerr!(Other, "parsing file name (regular) to string failed");
@@ -161,7 +165,7 @@ impl Metadata {
             Ok(s) => s
         };
 
-        Ok(format!("{}.{}", name, extension).as_str())
+        Ok(format!("{}.{}", name, extension))
     }
 }
 
