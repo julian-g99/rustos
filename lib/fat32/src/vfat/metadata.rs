@@ -211,23 +211,9 @@ impl Metadata {
         &self.short_name
     }
 
-    //pub fn get_file_string_utf8(&self) -> io::Result<String> {
-    ////pub fn get_file_string_utf8(&self) -> io::Result<&str> {
-        //let name = match from_utf8(&self.file_name) {
-            //Err(_) => {
-                //return ioerr!(Other, "parsing file name (regular) to string failed");
-            //},
-            //Ok(s) => s
-        //};
-        //let extension = match from_utf8(&self.file_extension) {
-            //Err(_) => {
-                //return ioerr!(Other, "parsing file extension (regular) to string failed");
-            //},
-            //Ok(s) => s
-        //};
-
-        //Ok(format!("{}.{}", name, extension))
-    //}
+    pub fn get_file_size(&self) -> u32 {
+        self.file_size
+    }
 }
 
 /// Gets the value at bit range starting at `start` and ending at `end` (both indices are inclusive)

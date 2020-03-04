@@ -68,12 +68,16 @@ impl CachedPartition {
     fn virtual_to_physical(&self, virt: u64) -> Option<u64> {
         if virt >= self.partition.num_sectors {
             println!("Virtual is: {}, there are {} sectors", virt, self.partition.num_sectors);
+            println!("the factor is: {}", self.factor());
+            println!("the start is: {}", self.partition.start);
             return None;
         }
-
         let physical_offset = virt * self.factor();
         let physical_sector = self.partition.start + physical_offset;
 
+        //if self.factor() != 1 {
+            //return Some(physical_sector - (self.factor() - 1));
+        //}
         Some(physical_sector)
     }
 
@@ -113,11 +117,17 @@ impl CachedPartition {
     pub fn get(&mut self, sector: u64) -> io::Result<&[u8]> {
         //let sector_size = self.device.sector_size();
         //let buf = vec![][0u8; sector_size];
+        let physical_sector = self.virtual_to_physical(sector).expect("virtual address translation failed");
 
         if !self.cache.contains_key(&sector) {
-            let mut buf = vec![0; self.device.sector_size() as usize];
+            //let mut buf = vec![0; self.device.sector_size() as usize];
             //self.device.read_sector(self.virtual_to_physical(sector).expect("virtual to physical address translation failed"), buf.as_mut_slice())?;
-            self.device.read_sector(sector, buf.as_mut_slice())?;
+            //let mut buf = vec![0; self.partition.sector_size as usize];
+            //self.device.read_sector(physical_sector, buf.as_mut_slice())?;
+            let mut buf = Vec::new();
+            for i in 0..self.factor() {
+                self.device.read_all_sector(physical_sector + i, &mut buf)?;
+            }
             self.cache.insert(sector, CacheEntry{data: buf, dirty: false});
         }
 

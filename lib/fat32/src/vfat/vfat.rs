@@ -71,10 +71,15 @@ impl<HANDLE: VFatHandle> VFat<HANDLE> {
         println!("device sector size: {}", device.sector_size());
         dbg!(ebpb);
         //let partition = Partition{start: first_sector as u64 + ebpb.num_reserved_sectors as u64, num_sectors: ebpb.sectors_per_fat as u64, sector_size: ebpb.bytes_per_sector as u64};
-        let partition = Partition{start: first_sector as u64, num_sectors: ebpb.sectors_per_fat as u64, sector_size: ebpb.bytes_per_sector as u64};
+        //println!("----------------\n start sector is: {}\n-----------------", first_sector);
+        //let partition = Partition{start: 0, num_sectors: ebpb.total_logical_sectors(), sector_size: ebpb.bytes_per_sector as u64};
+        //let vfat = VFat{phantom: PhantomData, device: CachedPartition::new(device, partition), bytes_per_sector: ebpb.bytes_per_sector,
+                        //sectors_per_cluster: ebpb.sectors_per_cluster, sectors_per_fat: ebpb.sectors_per_fat,
+                        //fat_start_sector: first_sector as u64 + ebpb.num_reserved_sectors as u64, data_start_sector: first_sector as u64 + ebpb.num_reserved_sectors as u64 + ebpb.num_fats as u64 * ebpb.sectors_per_fat as u64, rootdir_cluster: Cluster::from(ebpb.rootdir_cluster as u32)};
+        let partition = Partition{start: first_sector as u64, num_sectors: ebpb.total_logical_sectors(), sector_size: ebpb.bytes_per_sector as u64};
         let vfat = VFat{phantom: PhantomData, device: CachedPartition::new(device, partition), bytes_per_sector: ebpb.bytes_per_sector,
                         sectors_per_cluster: ebpb.sectors_per_cluster, sectors_per_fat: ebpb.sectors_per_fat,
-                        fat_start_sector: first_sector as u64 + ebpb.num_reserved_sectors as u64, data_start_sector: first_sector as u64 + ebpb.num_reserved_sectors as u64 + ebpb.num_fats as u64 * ebpb.sectors_per_fat as u64, rootdir_cluster: Cluster::from(ebpb.rootdir_cluster as u32)};
+                        fat_start_sector: ebpb.num_reserved_sectors as u64, data_start_sector: ebpb.num_reserved_sectors as u64 + ebpb.num_fats as u64 * ebpb.sectors_per_fat as u64, rootdir_cluster: Cluster::from(ebpb.rootdir_cluster as u32)};
         Ok(HANDLE::new(vfat))
     }
 
@@ -129,11 +134,14 @@ impl<HANDLE: VFatHandle> VFat<HANDLE> {
                     //let start_sector = curr_cluster.get_start_sector(self.sectors_per_cluster as u64, self.data_start_sector);
                     buf.resize(buf.len() + self.sectors_per_cluster as usize * self.bytes_per_sector as usize, 0);
                     self.read_cluster(curr_cluster, 0, buf.as_mut_slice())?;
+                    println!("next is: {}", next.inner());
                     curr_cluster = next;
                     clusters_read += 1;
                 },
                 Status::Free => {
                     println!("free cluster: {}", curr_cluster.inner());
+                    println!("sectors in fat: {}", self.sectors_per_fat);
+                    println!("bytes per sector: {}", self.bytes_per_sector);
                     return ioerr!(NotFound, "Encountered a free during read_chain()");
                 },
                 Status::Bad => {
@@ -144,13 +152,6 @@ impl<HANDLE: VFatHandle> VFat<HANDLE> {
                 },
             }
         }
-        //let mut fat_buf = Vec::new();
-        //for i in self.fat_start_sector..self.sectors_per_fat as u64 {
-            //fat_buf.extend_from_slice(self.device.get(i)?);
-        //}
-        //let fat = unsafe {fat_buf.cast::<u32>()};
-
-
     }
     
     ///A method to return a reference to a `FatEntry` for a cluster where the reference points directly into a cached sector.
@@ -158,8 +159,12 @@ impl<HANDLE: VFatHandle> VFat<HANDLE> {
         println!("current cluster: {}", cluster.inner());
         let entries_per_sector = self.bytes_per_sector as u32 / 4;
         let sector_index = self.fat_start_sector + (cluster.inner() / entries_per_sector) as u64;
+        if (sector_index - self.fat_start_sector) > self.sectors_per_fat as u64 {
+            println!("oh no");
+        }
         let offset = cluster.inner() % entries_per_sector;
         let buf = self.device.get(sector_index)?;
+        println!("sector size read: {}", buf.len());
         let fat: &[FatEntry] = unsafe{ buf.cast() };
         Ok(&fat[offset as usize])
     }
@@ -177,6 +182,10 @@ impl<'a, HANDLE: VFatHandle> FileSystem for &'a HANDLE {
         //unimplemented!("FileSystem::open()")
         //TODO: atm only deals with absolute path
 
+        if path.as_ref().is_relative() {
+            return ioerr!(Other, "Path given to open isn't relative");
+        }
+
         let first_cluster = self.lock(|fat: &mut VFat<HANDLE>| -> Cluster {
             fat.rootdir_cluster
         });
@@ -186,12 +195,32 @@ impl<'a, HANDLE: VFatHandle> FileSystem for &'a HANDLE {
             Metadata::from(buf.as_slice())
         });
 
-        let mut curr_dir: Dir<HANDLE> = Dir::new(self.clone(), first_cluster, metadata);
-        for comp in path.as_ref().components() {
-            if comp == Component::RootDir {
-                return Ok(Entry::new_from_dir(curr_dir));
+        let mut iter = path.as_ref().components();
+        let mut curr_dir: Dir<HANDLE> = Dir::new(self.clone(), first_cluster, metadata.clone());
+        let root: Self::Dir = Dir::new(self.clone(), first_cluster, metadata.clone());
+        let mut stack = Vec::new();
+        stack.push(Entry::new_from_dir(root));
+        iter.next();
+        for comp in iter {
+            match comp {
+                Component::Normal(s) => {
+                    //curr_dir = Dir::new(self.clone(), )
+                    match curr_dir.find(s)? {
+                        Entry::File(f) => {
+                            //return Ok(Entry::File(f));
+                            stack.push(Entry::File(f));
+                        },
+                        Entry::Dir(d) => {
+                            stack.push(Entry::Dir(d.clone()));
+                            curr_dir = d;
+                        }
+                    }
+                },
+                _ => {
+                    panic!("Not normal");
+                }
             }
         }
-        curr_dir.find(path.as_ref().as_os_str())
+        return Ok(stack.pop().expect("stack is empty"));
     }
 }

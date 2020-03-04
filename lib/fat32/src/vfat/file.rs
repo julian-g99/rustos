@@ -47,7 +47,7 @@ impl<HANDLE: VFatHandle> traits::File for File<HANDLE> {
     }
 
     fn size(&self) -> u64 {
-        unimplemented!("File::size()")
+        return self.metadata.get_file_size() as u64
     }
 }
 

@@ -15,7 +15,7 @@ use crate::util::{SliceExt, VecExt};
 use crate::vfat::{Attributes, Date, Metadata, Time, Timestamp};
 use crate::vfat::{Cluster, Entry, File, VFatHandle, VFat};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Dir<HANDLE: VFatHandle> {
     vfat: HANDLE,
     first_cluster: Cluster,
@@ -146,7 +146,7 @@ impl<HANDLE: VFatHandle> Dir<HANDLE> {
     pub fn find<P: AsRef<OsStr>>(&self, name: P) -> io::Result<Entry<HANDLE>> {
         use traits::Dir;
         for entry in self.entries()? {
-            dbg!(&entry);
+            //dbg!(&entry);
             let file_name = String::from(entry.get_name());
             let queried_name = match name.as_ref().to_str() {
                 Some(s) => s,

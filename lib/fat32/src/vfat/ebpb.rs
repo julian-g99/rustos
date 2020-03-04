@@ -68,6 +68,10 @@ impl BiosParameterBlock {
     pub fn good_signature(&self) -> bool {
         self.signature == 0x28 || self.signature == 0x29
     }
+
+    pub fn total_logical_sectors(&self) -> u64 {
+        self.total_logical_sectors as u64
+    }
 }
 
 impl fmt::Debug for BiosParameterBlock {
