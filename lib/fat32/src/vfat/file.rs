@@ -3,7 +3,7 @@ use alloc::string::String;
 use shim::io::{self, SeekFrom};
 
 use crate::traits;
-use crate::vfat::{Cluster, Metadata, VFatHandle};
+use crate::vfat::{Cluster, Metadata, VFatHandle, dir::VFatRegularDirEntry};
 
 #[derive(Debug)]
 pub struct File<HANDLE: VFatHandle> {
@@ -15,22 +15,28 @@ pub struct File<HANDLE: VFatHandle> {
 
 
 impl<HANDLE: VFatHandle> File<HANDLE> {
-    pub fn new(vfat: HANDLE, first_cluster: Cluster, metadata: Metadata) -> Self{
-        let name = metadata.get_file_string_utf8().expect("file name failed");
-        File{vfat, first_cluster, metadata, name}
+    pub fn new(vfat: HANDLE, first_cluster: Cluster, metadata: Metadata, name: String) -> Self{
+        File{vfat: vfat.clone(), first_cluster, metadata, name}
     }
 
     pub fn is_end(&self) -> bool {
         self.metadata.is_end()
     }
 
-    pub fn get_name_utf8(&self) -> io::Result<&str> {
-        //self.metadata.get_file_string_utf8()
-        Ok(self.name.as_str())
+    pub fn get_name(&self) -> &str {
+        self.name.as_str()
     }
 
     pub fn get_metadata(&self) -> &Metadata {
         &self.metadata
+    }
+
+    pub fn from_regular_entry(handle: HANDLE, entry: VFatRegularDirEntry, name: String) -> Self {
+        let vfat = handle.clone();
+        //let first_cluster = Cluster::from(entry.get_cluster());
+        let first_cluster = entry.get_cluster();
+        let metadata = entry.get_metadata();
+        File{vfat, first_cluster, metadata, name}
     }
 }
 

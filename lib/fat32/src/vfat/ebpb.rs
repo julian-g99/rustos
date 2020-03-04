@@ -64,6 +64,10 @@ impl BiosParameterBlock {
             }
         }
     }
+
+    pub fn good_signature(&self) -> bool {
+        self.signature == 0x28 || self.signature == 0x29
+    }
 }
 
 impl fmt::Debug for BiosParameterBlock {

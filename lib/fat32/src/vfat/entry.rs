@@ -11,30 +11,32 @@ pub enum Entry<HANDLE: VFatHandle> {
 }
 
 impl<HANDLE: VFatHandle> Entry<HANDLE> {
-    pub fn new(slice: &[u8], handle: HANDLE) -> Self {
-        assert_eq!(slice.len(), 32, "slice given to Entry::new() isn't length 32");
-        let vfat = handle.clone();
-        let first_cluster = Cluster::first_cluster_of_entry(slice);
-        let metadata = Metadata::from(slice);
+    //pub fn new(slice: &[u8], handle: HANDLE) -> Self {
+        //assert_eq!(slice.len(), 32, "slice given to Entry::new() isn't length 32");
+        //let vfat = handle.clone();
+        //let first_cluster = Cluster::first_cluster_of_entry(slice);
+        //let metadata = Metadata::from(slice);
 
-        if metadata.get_attribute().is_dir() {
-            Entry::Dir(Dir::new(vfat, first_cluster, metadata))
-        } else {
-            Entry::File(File::new(vfat, first_cluster, metadata))
-        }
-        
-        //match arr[11] {
-            //0x10 => {
-                ////TODO: parse as a directory
-            //},
-            //0x0F => {
-                ////TODO: parse as a lfn
-            //},
-            //_ => {
-                ////TODO: parse asas normal file
-            //},
+        //if metadata.get_attribute().is_dir() {
+            //Entry::Dir(Dir::new(vfat, first_cluster, metadata))
+        //} else if metadata.get_attribute().is_lfn() {
+            //Entry::File(File::new(vfat, first_cluster, metadata))
+        //} else {
+            //Entry::File(File::new(vfat, first_cluster, metadata))
         //}
-    }
+        
+        ////match arr[11] {
+            ////0x10 => {
+                //////TODO: parse as a directory
+            ////},
+            ////0x0F => {
+                //////TODO: parse as a lfn
+            ////},
+            ////_ => {
+                //////TODO: parse asas normal file
+            ////},
+        ////}
+    //}
 
 
     pub fn new_from_dir(dir: Dir<HANDLE>) -> Self {
@@ -58,17 +60,33 @@ impl<HANDLE: VFatHandle> Entry<HANDLE> {
         }
     }
 
-    pub fn get_name_utf8(&self) -> io::Result<&str> {
+    //pub fn get_name_utf8(&self) -> io::Result<&str> {
+        //match self {
+            //Entry::Dir(d) => {
+                //d.get_name_utf8()
+            //},
+            //Entry::File(f) => {
+                //f.get_name_utf8()
+            //}
+        //}
+    //}
+    //
+    pub fn get_name(&self) -> &str {
         match self {
-            Entry::Dir(d) => {
-                d.get_name_utf8()
-            },
-            Entry::File(f) => {
-                f.get_name_utf8()
-            }
+            Entry::Dir(d) => d.get_name(),
+            Entry::File(f) => f.get_name()
+        }
+    }
+
+    pub fn from_regular_entry(entry: VFatRegularDirEntry, handle: HANDLE, name: String) -> Self {
+        if entry.is_dir() {
+            Entry::Dir(Dir::from_regular_entry(handle, entry, name))
+        } else {
+            Entry::File(File::from_regular_entry(handle, entry, name))
         }
     }
 }
+
 
 // TODO: Implement any useful helper methods on `Entry`.
 
@@ -79,8 +97,8 @@ impl<HANDLE: VFatHandle> traits::Entry for Entry<HANDLE> {
 
     fn name(&self) -> &str {
         match self {
-            Entry::Dir(d) => d.get_name_utf8().unwrap(),
-            Entry::File(f) => f.get_name_utf8().unwrap()
+            Entry::Dir(d) => d.get_name(),
+            Entry::File(f) => f.get_name()
         }
     }
 

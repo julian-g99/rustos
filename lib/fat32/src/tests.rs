@@ -245,14 +245,15 @@ fn test_root_entries() {
     let hash = hash_dir_from(vfat_from_resource!("mock1.fat32.img"), "/");
     assert_hash_eq!("mock 1 root directory", hash, hash_for!("root-entries-1"));
 
-    let hash = hash_dir_from(vfat_from_resource!("mock2.fat32.img"), "/");
-    assert_hash_eq!("mock 2 root directory", hash, hash_for!("root-entries-2"));
 
     let hash = hash_dir_from(vfat_from_resource!("mock3.fat32.img"), "/");
     assert_hash_eq!("mock 3 root directory", hash, hash_for!("root-entries-3"));
 
     let hash = hash_dir_from(vfat_from_resource!("mock4.fat32.img"), "/");
     assert_hash_eq!("mock 4 root directory", hash, hash_for!("root-entries-4"));
+
+    let hash = hash_dir_from(vfat_from_resource!("mock2.fat32.img"), "/");
+    assert_hash_eq!("mock 2 root directory", hash, hash_for!("root-entries-2"));
 }
 
 fn hash_dir_recursive<P: AsRef<Path>>(

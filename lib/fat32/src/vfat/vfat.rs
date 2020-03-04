@@ -11,7 +11,7 @@ use shim::path;
 use shim::path::Component;
 use shim::path::Path;
 
-use crate::mbr::MasterBootRecord;
+use crate::mbr::{MasterBootRecord, PartitionEntry};
 use crate::traits::{BlockDevice, FileSystem};
 use crate::util::{SliceExt, VecExt};
 use crate::vfat::{BiosParameterBlock, CachedPartition, Partition};
@@ -52,31 +52,29 @@ impl<HANDLE: VFatHandle> VFat<HANDLE> {
         let mut first_sector = 0;
         for i in 0..4 {
             first_sector = mbr.partition_entries[i].relative_sector;
+            if !mbr.partition_entries[i].is_fat() {
+                continue;
+            }
             match BiosParameterBlock::from(&mut device, first_sector as u64) {
                 Ok(b) => {
-                    ebpb_option = Some(b);
-                    break;
+                    if b.good_signature() {
+                        ebpb_option = Some(b);
+                        break;
+                    }
                 },
                 Err(e) => {
-                    return Err(e);
+                    continue;
                 }
             }
         };
         let ebpb = ebpb_option.expect("ebpb unwrap failed");
-        //let first_sector = mbr.partition_entries[0].relative_sector; //CHECK: is "start of disk" always 0/
-        //let ebpb = match BiosParameterBlock::from(&mut device, first_sector as u64) {
-            //Ok(b) => b,
-            //Err(e) => {
-                //return Err(e);
-            //}
-        //};
-        let partition = Partition{start: first_sector as u64 + ebpb.num_reserved_sectors as u64, num_sectors: ebpb.sectors_per_fat as u64, sector_size: ebpb.bytes_per_sector as u64};
+        println!("device sector size: {}", device.sector_size());
+        dbg!(ebpb);
+        //let partition = Partition{start: first_sector as u64 + ebpb.num_reserved_sectors as u64, num_sectors: ebpb.sectors_per_fat as u64, sector_size: ebpb.bytes_per_sector as u64};
+        let partition = Partition{start: first_sector as u64, num_sectors: ebpb.sectors_per_fat as u64, sector_size: ebpb.bytes_per_sector as u64};
         let vfat = VFat{phantom: PhantomData, device: CachedPartition::new(device, partition), bytes_per_sector: ebpb.bytes_per_sector,
                         sectors_per_cluster: ebpb.sectors_per_cluster, sectors_per_fat: ebpb.sectors_per_fat,
                         fat_start_sector: first_sector as u64 + ebpb.num_reserved_sectors as u64, data_start_sector: first_sector as u64 + ebpb.num_reserved_sectors as u64 + ebpb.num_fats as u64 * ebpb.sectors_per_fat as u64, rootdir_cluster: Cluster::from(ebpb.rootdir_cluster as u32)};
-        //let vfat = VFat{phantom: PhantomData, device: CachedPartition::new(device, partition), bytes_per_sector: ebpb.bytes_per_sector,
-                        //sectors_per_cluster: ebpb.sectors_per_cluster, sectors_per_fat: ebpb.sectors_per_fat,
-                        //fat_start_sector: ebpb.num_reserved_sectors as u64, data_start_sector: ebpb.num_reserved_sectors as u64 + ebpb.num_fats as u64 * ebpb.sectors_per_fat as u64, rootdir_cluster: Cluster::from(ebpb.rootdir_cluster as u32)};
         Ok(HANDLE::new(vfat))
     }
 
@@ -90,20 +88,21 @@ impl<HANDLE: VFatHandle> VFat<HANDLE> {
         buf: &mut [u8]
     ) -> io::Result<usize> {
         //CHECK: is cluster always bigger than sector
-        let mut vector = Vec::new();
         let start_sector = cluster.get_start_sector(self.sectors_per_cluster as u64, self.data_start_sector);
 
-        for i in start_sector..start_sector + self.sectors_per_cluster as u64 {
-            vector.extend_from_slice(self.device.get(i)?);
-        }
+        //for i in start_sector..start_sector + self.sectors_per_cluster as u64 {
+            //vector.extend_from_slice(self.device.get(i)?);
+        //}
+        let sector = self.device.get(start_sector + offset as u64)?;
 
-        if vector.len() > buf.len() {
-            buf.copy_from_slice(&vector[..buf.len()]);
+        if sector.len() >= buf.len() {
+            buf.copy_from_slice(&sector[..buf.len()]);
             return Ok(buf.len());
         } else {
-            vector.resize(buf.len(), 0);
-            buf.copy_from_slice(vector.as_slice());
-            return Ok(vector.len());
+            //sector.resize(buf.len(), 0);
+            let sub_buffer = &mut buf[..sector.len()];
+            sub_buffer.copy_from_slice(sector);
+            return Ok(sector.len());
         }
     }
     
@@ -115,43 +114,26 @@ impl<HANDLE: VFatHandle> VFat<HANDLE> {
         start: Cluster,
         buf: &mut Vec<u8>
     ) -> io::Result<usize> {
-        let mut fat_buf = Vec::new();
-        for i in self.fat_start_sector..self.fat_start_sector + self.sectors_per_cluster as u64 {
-            fat_buf.extend_from_slice(self.device.get(i)?);
-        }
-        //let fat = unsafe{ fat_buf.cast::<u32>() };
-
-        //let mut curr_entry = self.fat_entry(start)?;
         let mut curr_cluster = start;
         let mut clusters_read = 0;
         loop {
             match self.fat_entry(curr_cluster)?.status() {
-                Status::Eoc(val) => {
-                    //TODO: read data from this cluster
-                    //let start_sector = curr_entry.get_data_sector()?.get_start_sector(self.sectors_per_cluster as u64, self.data_start_sector);
-                    let start_sector = curr_cluster.get_start_sector(self.sectors_per_cluster as u64, self.data_start_sector);
-
-                    for i in start_sector..start_sector + self.sectors_per_cluster as u64 {
-                        buf.extend_from_slice(self.device.get(i)?);
-                    }
+                Status::Eoc(v) => {
+                    buf.resize(buf.len() + self.sectors_per_cluster as usize * self.bytes_per_sector as usize, 0);
+                    let num = self.read_cluster(curr_cluster, 0, buf.as_mut_slice())?;
                     clusters_read += 1;
-                    println!("EOC: {}", val);
                     return Ok(clusters_read);
                 },
                 Status::Data(next) => {
                     //TODO: read data from this cluster
-                    println!("Data sector: {:?}", next);
-                    //let start_sector = curr_entry.get_data_sector()?.get_start_sector(self.sectors_per_cluster as u64, self.data_start_sector);
-                    let start_sector = curr_cluster.get_start_sector(self.sectors_per_cluster as u64, self.data_start_sector);
-
-                    for i in start_sector..start_sector + self.sectors_per_cluster as u64 {
-                        buf.extend_from_slice(self.device.get(i)?);
-                    }
-
+                    //let start_sector = curr_cluster.get_start_sector(self.sectors_per_cluster as u64, self.data_start_sector);
+                    buf.resize(buf.len() + self.sectors_per_cluster as usize * self.bytes_per_sector as usize, 0);
+                    self.read_cluster(curr_cluster, 0, buf.as_mut_slice())?;
                     curr_cluster = next;
                     clusters_read += 1;
                 },
                 Status::Free => {
+                    println!("free cluster: {}", curr_cluster.inner());
                     return ioerr!(NotFound, "Encountered a free during read_chain()");
                 },
                 Status::Bad => {
@@ -173,13 +155,13 @@ impl<HANDLE: VFatHandle> VFat<HANDLE> {
     
     ///A method to return a reference to a `FatEntry` for a cluster where the reference points directly into a cached sector.
     fn fat_entry(&mut self, cluster: Cluster) -> io::Result<&FatEntry> { //TODO: i removed the reference on FatEntry
-        let mut buf = Vec::new();
-        for i in self.fat_start_sector..self.fat_start_sector + self.sectors_per_fat as u64 {
-            buf.extend_from_slice(self.device.get(i)?);
-        }
-        //let fat: &[FatEntry] = unsafe{ buf.as_slice().cast::<FatEntry>() };
-        let fat: &[FatEntry] = unsafe{ buf.as_slice().cast() };
-        Ok(&fat[cluster.inner() as usize])
+        println!("current cluster: {}", cluster.inner());
+        let entries_per_sector = self.bytes_per_sector as u32 / 4;
+        let sector_index = self.fat_start_sector + (cluster.inner() / entries_per_sector) as u64;
+        let offset = cluster.inner() % entries_per_sector;
+        let buf = self.device.get(sector_index)?;
+        let fat: &[FatEntry] = unsafe{ buf.cast() };
+        Ok(&fat[offset as usize])
     }
 }
 

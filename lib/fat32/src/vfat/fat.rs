@@ -28,17 +28,18 @@ pub struct FatEntry(pub u32);
 impl FatEntry {
     /// Returns the `Status` of the FAT entry `self`.
     pub fn status(&self) -> Status {
-        let val = self.0;
-        if val == 0 {
+        let cleared_val = self.0 & 0x0fffffff;
+        //let cleared_val = self.0;
+        if cleared_val == 0 {
             Free
-        } else if val == 1 || (val >= 0x0FFFFFF0 && val <= 0x0FFFFFF6) {
+        } else if cleared_val == 1 || (cleared_val >= 0x0FFFFFF0 && cleared_val <= 0x0FFFFFF6) {
             Reserved
-        } else if val == 0x0FFFFFF7 {
+        } else if cleared_val == 0x0FFFFFF7 {
             Bad
-        } else if val >= 0x0FFFFFF8 && val <= 0x0FFFFFFF {
-            Eoc(val) //TODO: use actual Eoc
+        } else if cleared_val >= 0x0FFFFFF8 && cleared_val <= 0x0FFFFFFF {
+            Eoc(cleared_val) //TODO: use actual Eoc
         } else {
-            Data(Cluster::from(val))
+            Data(Cluster::from(self.0))
         }
     }
 

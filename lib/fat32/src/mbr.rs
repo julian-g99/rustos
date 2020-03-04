@@ -31,11 +31,17 @@ pub struct PartitionEntry {
     total_sectors: u32
 }
 
+impl PartitionEntry {
+    pub fn is_fat(&self) -> bool {
+        self.partition_type == 0xB || self.partition_type == 0xC
+    }
+}
+
 // FIXME: implement Debug for PartitionEntry
 impl fmt::Debug for PartitionEntry {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "boot indcator: {:?}, head chs: {:?}, partition type: {:?}, \
-            end chs: {:?}, relative sector: {:?}, total sectors: {:?}"
+        write!(f, "boot indcator: {:?},\nhead chs: {:?},\n partition type: {:?},\n \
+            end chs: {:?},\n relative sector: {:?},\n total sectors: {:?}"
             ,self.boot_indicator, &{self.head_chs}, self.partition_type,
             &{self.end_chs}, &{self.relative_sector}, &{self.total_sectors})
     }
@@ -57,7 +63,7 @@ pub struct MasterBootRecord {
 // FIXME: implemente Debug for MaterBootRecord
 impl fmt::Debug for MasterBootRecord {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "unique disk id: {:?}, partition entries: {:?}, \
+        write!(f, "unique disk id: {:?},\npartition entries: {:?},\n \
             valid sector signature bytes: {:?}",
             self.disk_id, self.partition_entries, &{self.valid_signature})
     }

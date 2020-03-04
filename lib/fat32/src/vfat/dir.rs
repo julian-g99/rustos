@@ -26,7 +26,7 @@ pub struct Dir<HANDLE: VFatHandle> {
 
 impl<HANDLE: VFatHandle> Dir<HANDLE> {
     pub fn new(vfat: HANDLE, first_cluster: Cluster, metadata: Metadata) -> Self{
-        let name = metadata.get_file_string_utf8().expect("dir name failed");
+        let name = metadata.get_short_name().to_string();
         Dir{vfat, first_cluster, metadata, name}
     }
 
@@ -34,13 +34,24 @@ impl<HANDLE: VFatHandle> Dir<HANDLE> {
         self.metadata.is_end()
     }
 
-    pub fn get_name_utf8(&self) -> io::Result<&str> {
-        //self.metadata.get_file_string_utf8(
-        Ok(self.name.as_str())
+    pub fn get_name(&self) -> &str {
+        self.name.as_str()
     }
+    //pub fn get_name_utf8(&self) -> io::Result<&str> {
+        ////self.metadata.get_file_string_utf8(
+        //Ok(self.name.as_str())
+    //}
     
     pub fn get_metadata(&self) -> &Metadata {
         &self.metadata
+    }
+
+    pub fn from_regular_entry(handle: HANDLE, entry: VFatRegularDirEntry, name: String) -> Self {
+        let vfat = handle.clone();
+        //let first_cluster = Cluster::from(((entry.first_cluster_high as u32) << 16) + (entry.first_cluster_low as u32));
+        let first_cluster = entry.get_cluster();
+        let metadata = entry.get_metadata();
+        Dir{vfat, first_cluster, metadata, name}
     }
 }
 
@@ -50,7 +61,7 @@ pub struct EntryIterator<HANDLE: VFatHandle> {
     chain: Vec<VFatDirEntry>,
     vfat: HANDLE,
     //curr_entry: Entry<HANDLE>
-    index: usize
+    index: usize,
 }
 
 #[repr(C, packed)]
@@ -69,6 +80,23 @@ pub struct VFatRegularDirEntry {
     last_modification_date: Date,
     first_cluster_low: u16,
     file_size: u32
+}
+
+impl VFatRegularDirEntry {
+    pub fn get_metadata(&self) -> Metadata {
+        let creation_time = Timestamp::new(self.creation_date, self.creation_time);
+        let last_access_date = Timestamp::new(self.creation_date, Default::default());
+        let last_modification_date = Timestamp::new(self.last_modification_date, self.last_modification_time);
+        Metadata::new(&self.file_name, &self.file_extension, self.attribute, creation_time, last_access_date, last_modification_date, self.file_size)
+    }
+
+    pub fn get_cluster(&self) -> Cluster {
+        Cluster::from(((self.first_cluster_high as u32) << 16) + (self.first_cluster_low as u32))
+    }
+    
+    pub fn is_dir(&self) -> bool {
+        self.attribute.is_dir()
+    }
 }
 
 //const_assert_size!(VFatRegularDirEntry, 32);
@@ -116,11 +144,10 @@ impl<HANDLE: VFatHandle> Dir<HANDLE> {
     /// If `name` contains invalid UTF-8 characters, an error of `InvalidInput`
     /// is returned.
     pub fn find<P: AsRef<OsStr>>(&self, name: P) -> io::Result<Entry<HANDLE>> {
-        println!("The file being queried: {}", name.as_ref().to_str().unwrap());
         use traits::Dir;
         for entry in self.entries()? {
             dbg!(&entry);
-            let file_name = String::from(entry.get_name_utf8()?);
+            let file_name = String::from(entry.get_name());
             let queried_name = match name.as_ref().to_str() {
                 Some(s) => s,
                 None => return ioerr!(NotFound, "input in Dir::find() isn't valid unicode")
@@ -140,20 +167,30 @@ impl<HANDLE: VFatHandle> Dir<HANDLE> {
 //} 
 
 impl<HANDLE: VFatHandle> EntryIterator<HANDLE> {
-    fn new_from_dir(root: &Dir<HANDLE>) -> EntryIterator<HANDLE> {
+    fn new_from_dir(root: &Dir<HANDLE>) -> io::Result<EntryIterator<HANDLE>> {
         //unimplemented!("EntryIterator::new_from_dir()")
         //dbg!(root);
         let vfat = root.vfat.clone();
         let mut buf: Vec<u8> = Vec::new();
-        vfat.lock(|fat: &mut VFat<HANDLE>| {
-            fat.read_chain(root.first_cluster, &mut buf).expect("failed to read chain in EntryIterator::new_from_dir()");
+        let num_read = vfat.lock(|fat: &mut VFat<HANDLE>| -> io::Result<usize> {
+            //fat.read_chain(root.first_cluster, &mut buf).expect("failed to read chain in EntryIterator::new_from_dir()");
+            fat.read_chain(root.first_cluster, &mut buf)
         });
 
-        let chain = unsafe {buf.cast::<VFatDirEntry>()};
+        match num_read {
+            Err(e) => {
+                return Err(e);
+            },
+            Ok(_) => {
+                let chain = unsafe {buf.cast::<VFatDirEntry>()};
+
+                return Ok(EntryIterator{vfat, chain, index: 0});
+            }
+        }
+
 
         //let curr_entry = Entry::new(&chain[..32], vfat.clone());
 
-        EntryIterator{vfat, chain, index: 0}
     }
 }
 
@@ -168,7 +205,7 @@ fn decode_name_from_slice(slice: &[u8]) -> io::Result<String> {
             Err(e) => {return ioerr!(Other, "cannot decode utf16 string")}
         }
     }
-    return Ok(output)
+    return Ok(output);
 }
 
 fn combine_string(vec: &Vec<String>) -> String {
@@ -190,46 +227,71 @@ impl<HANDLE: VFatHandle> Iterator for EntryIterator<HANDLE> {
             //Some(entry)
         //}
         //let entry = unsafe {*(&self.chain[self.index .. self.index + 32] as *const VFatDirEntry)};
-        //
+        
+        let entry = unsafe {self.chain[self.index].unknown};
+        if entry.attribute.is_lfn() {
+            let mut vec: Vec<String> = Vec::new();
+            let mut length = 0;
+            loop {
+                let lfn_entry = unsafe {self.chain[self.index].long_filename};
+                if !lfn_entry.attribute.is_lfn() {
+                    return None;
+                }
+                self.index += 1;
+                if lfn_entry.sequence_number > length {
+                    length = lfn_entry.sequence_number;
+                }
+                let mut final_name = String::new();
+                match decode_name_from_slice(&lfn_entry.first_name) {
+                    Ok(s) => final_name.push_str(s.as_str()),
+                    Err(_) => {
+                        return None;
+                    }
+                };
+                match decode_name_from_slice(&lfn_entry.second_name) {
+                    Ok(s) => final_name.push_str(s.as_str()),
+                    Err(_) => {
+                        return None;
+                    }
+                };
+                match decode_name_from_slice(&lfn_entry.third_name) {
+                    Ok(s) => final_name.push_str(s.as_str()),
+                    Err(_) => {
+                        return None;
+                    }
+                };
+                if vec.len() < lfn_entry.sequence_number as usize {
+                    vec.resize(lfn_entry.sequence_number as usize, String::from(""));
+                }
+                vec.insert(lfn_entry.sequence_number as usize, final_name);
 
-        //let entry = unsafe {self.chain[self.index].unknown};
-        //if entry.attribute.is_lfn() {
-            //let vec: Vec<String> = Vec::new();
-            //let mut length = 0;
-            //loop {
-                //let lfn_entry = unsafe {self.chain[self.index].long_filename};
-                //self.index += 1;
-                //if lfn_entry.sequence_number > length {
-                    //length = lfn_entry.sequence_number;
-                //}
-                //let final_name = String::new();
-                //match decode_name_from_slice(&lfn_entry.first_name) {
-                    //Ok(s) => final_name.push_str(s.as_str()),
-                    //Err(_) => return None
-                //};
-                //match decode_name_from_slice(&lfn_entry.first_name) {
-                    //Ok(s) => final_name.push_str(s.as_str()),
-                    //Err(_) => return None
-                //};
-                //match decode_name_from_slice(&lfn_entry.first_name) {
-                    //Ok(s) => final_name.push_str(s.as_str()),
-                    //Err(_) => return None
-                //};
-                //if vec.len() < lfn_entry.sequence_number as usize {
-                    //vec.resize(lfn_entry.sequence_number as usize, String::from(""));
-                //}
-                //vec.insert(lfn_entry.sequence_number as usize, final_name);
-
+                if lfn_entry.sequence_number % 0b01000000 != 0 {
+                    break;
+                }
+                //println!("sequence number: {:#b}", lfn_entry.sequence_number);
                 //if lfn_entry.sequence_number == 1 {
                     //break;
                 //}
-            //}
-            //let lfn_name = combine_string(&vec);
+            }
+            let lfn_name = combine_string(&vec);
+            let reg_entry = unsafe {self.chain[self.index].regular};
             //return Some(Entry::new_from_file(File::new(handle, )))
-        //} else {
-            //let regular_entry = unsafe {entry.regular};
-        //}
-        unimplemented!("next function for EntryIterator")
+            if reg_entry.get_metadata().is_end() {
+                return None;
+            } else {
+                self.index += 1;
+                return Some(Entry::from_regular_entry(reg_entry, self.vfat.clone(), lfn_name));
+            }
+        } else {
+            let reg_entry = unsafe {self.chain[self.index].regular};
+            let metadata = reg_entry.get_metadata();
+            if metadata.is_end() {
+                return None;
+            }
+            let name = metadata.get_short_name();
+            self.index += 1;
+            return Some(Entry::from_regular_entry(reg_entry, self.vfat.clone(), name.to_string()));
+        }
     }
 }
 
@@ -240,6 +302,6 @@ impl<HANDLE: VFatHandle> traits::Dir for Dir<HANDLE> {
 
     fn entries(&self) -> io::Result<Self::Iter> {
         //TODO: implement
-        Ok(EntryIterator::new_from_dir(self))
+        Ok(EntryIterator::new_from_dir(self)?)
     }
 }

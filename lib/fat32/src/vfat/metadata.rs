@@ -62,7 +62,7 @@ pub struct Timestamp {
 }
 
 impl Timestamp {
-    fn new(date: Date, time: Time) -> Self {
+    pub fn new(date: Date, time: Time) -> Self {
         Timestamp{date, time}
     }
 
@@ -86,6 +86,8 @@ pub struct Metadata {
     id: u8,
     file_name: [u8; 8],
     file_extension: [u8; 3],
+    //short_name: Option<String>,
+    short_name: String,
     attribute: Attributes,
     //reserved_for_windows: u8,
     //create_time_10th_second: u8,
@@ -101,8 +103,8 @@ impl fmt::Debug for Metadata {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         //write!(f, "id: {}, file name: {}, file extension: {}, attributes: {:?}, creation time: {:?}, last_access_date: {:?}, last_modification_date: {:?}, file_size: {}",
             //self.id, std::str::from_utf8(&self.file_name), std::str::from_utf8(&self.file_extension), self.attribute, self.creation_time, self.last_access_date, self.last_modification_date, self.file_size)
-        write!(f, "id: {}, file name: {}, file extension: {}, file_size: {}",
-            self.id, std::str::from_utf8(&self.file_name).unwrap(), std::str::from_utf8(&self.file_extension).unwrap(), self.file_size)
+        write!(f, "id: {}, file name: {:?}, file_size: {}",
+            self.id, self.short_name, self.file_size)
     }
 }
 
@@ -124,24 +126,79 @@ fn u8_to_u64 (slice: &[u8]) -> u64{
     output
 }
 
+fn combine_to_short_name(file_name: &[u8], file_extension: &[u8]) -> String {
+    assert_eq!(file_name.len(), 8);
+    assert_eq!(file_extension.len(), 3);
+
+    let mut name = String::new();
+    let mut extension = String::new();
+    for c in file_name {
+        if *c == 0x00 || *c == 0x20 {
+            break;
+        } else {
+            name.push(*c as char);
+        }
+    }
+    for c in file_extension {
+        if *c == 0x00 || *c == 0x20 {
+            break;
+        } else {
+            extension.push(*c as char);
+        }
+    }
+
+    if extension.len() != 0 {
+        name + "." + extension.as_str()
+    } else {
+        name
+    }
+}
+
 impl From::<&[u8]> for Metadata {
     fn from(slice: &[u8]) -> Self {
         assert_eq!(slice.len(), 32, "vector given to Metadata::from() isn't length 32");
         let id = slice[0];
-        //let file_name = u8_to_u64(&slice[..8]);
         let file_name: [u8; 8] = slice[..8].try_into().expect("slice with incorrect length");
         let file_extension: [u8; 3] = slice[8..11].try_into().expect("slice with incorrect length");
         let attribute = Attributes::from(slice[11]);
+        //let mut short_name = None;
+        //if !attribute.is_lfn() {
+            //short_name = Some(combine_to_short_name(&slice[..8], &slice[8..11]));
+        //}
+        let mut short_name = String::new();
+        if !attribute.is_lfn() {
+            short_name = combine_to_short_name(&slice[..8], &slice[8..11]);
+        }
         let creation_time = Timestamp::new_from_slices(&slice[14..16], &slice[16..18]);
         let last_access_date = Timestamp::new_from_slices(&slice[18..20], &[0, 0]);
         let last_modification_date = Timestamp::new_from_slices(&slice[22..24], &slice[24..26]);
         let file_size = u8_to_u32(&slice[28..]);
 
-        Metadata{id, file_name, file_extension, attribute, creation_time, last_access_date, last_modification_date, file_size}
+        Metadata{id, file_name, file_extension, short_name, attribute, creation_time, last_access_date, last_modification_date, file_size}
     }
 }
 
+
 impl Metadata {
+    pub fn new(name: &[u8], extension: &[u8], attribute: Attributes, creation_time: Timestamp, last_access_date: Timestamp,
+        last_modification_date: Timestamp, file_size: u32) -> Self {
+        assert_eq!(name.len(), 8, "name given to Metadata::new() isn't length 8");
+        assert_eq!(extension.len(), 3, "extension given to Metadata::new() isn't length 3");
+        let file_name: [u8; 8] = name.try_into().expect("slice with incorrect length");
+        let file_extension: [u8; 3] = extension.try_into().expect("slice with incorrect length");
+        let id = file_name[0];
+        //let mut short_name = None;
+        //if !attribute.is_lfn() {
+            //short_name = Some(combine_to_short_name(name, extension));
+        //}
+        let mut short_name = String::new();
+        if !attribute.is_lfn() {
+            short_name = combine_to_short_name(name, extension);
+        }
+        Metadata {id, file_name, file_extension, short_name, attribute, creation_time, last_access_date, last_modification_date, file_size}
+    }
+
+
     pub fn get_attribute(&self) -> Attributes {
         self.attribute
     }
@@ -150,23 +207,27 @@ impl Metadata {
         self.id == 0x00
     }
 
-    pub fn get_file_string_utf8(&self) -> io::Result<String> {
-    //pub fn get_file_string_utf8(&self) -> io::Result<&str> {
-        let name = match from_utf8(&self.file_name) {
-            Err(_) => {
-                return ioerr!(Other, "parsing file name (regular) to string failed");
-            },
-            Ok(s) => s
-        };
-        let extension = match from_utf8(&self.file_extension) {
-            Err(_) => {
-                return ioerr!(Other, "parsing file extension (regular) to string failed");
-            },
-            Ok(s) => s
-        };
-
-        Ok(format!("{}.{}", name, extension))
+    pub fn get_short_name(&self) -> &String {
+        &self.short_name
     }
+
+    //pub fn get_file_string_utf8(&self) -> io::Result<String> {
+    ////pub fn get_file_string_utf8(&self) -> io::Result<&str> {
+        //let name = match from_utf8(&self.file_name) {
+            //Err(_) => {
+                //return ioerr!(Other, "parsing file name (regular) to string failed");
+            //},
+            //Ok(s) => s
+        //};
+        //let extension = match from_utf8(&self.file_extension) {
+            //Err(_) => {
+                //return ioerr!(Other, "parsing file extension (regular) to string failed");
+            //},
+            //Ok(s) => s
+        //};
+
+        //Ok(format!("{}.{}", name, extension))
+    //}
 }
 
 /// Gets the value at bit range starting at `start` and ending at `end` (both indices are inclusive)
@@ -174,7 +235,8 @@ impl Metadata {
 /// start
 fn get_bit_range(num: u16, start: u16, end: u16) -> u8 {
     assert!(end >= start);
-    let mask = (1 << (end - start + 1)) << start;
+    //let mask = (1 << (end - start + 1)) << start;
+    let mask = ((1 << (end - start + 1)) - 1) << start;
     ((num & mask) >> start) as u8
 }
 
@@ -201,7 +263,7 @@ impl traits::Timestamp for Timestamp {
     }
 
     fn second(&self) -> u8 {
-        get_bit_range(self.time.0, 0, 4)
+        get_bit_range(self.time.0, 0, 4) * 2
     }
 }
 
