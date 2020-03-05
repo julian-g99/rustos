@@ -69,12 +69,12 @@ impl LocalAlloc for Allocator {
 	/// size or alignment constraints.
 	unsafe fn alloc(&mut self, layout: Layout) -> *mut u8 {
 		//TODO: get the appropriate bin size
-		if layout.size() < (2 << 3) {
-			return core::ptr::null_mut();
-		}
+		//if layout.size() < (2 << 3) {
+			//return core::ptr::null_mut();
+		//}
 		let mut smallest_bin = 0;
 		for i in 0..30 {
-			if layout.size() <= 2 << (i + 3) {
+			if layout.size() <= 2 << (i + 3) { //TODO: take metadata into account
 				smallest_bin = i;
 				break;
 			}
