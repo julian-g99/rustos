@@ -65,7 +65,7 @@ pub struct EntryIterator<HANDLE: VFatHandle> {
 }
 
 #[repr(C, packed)]
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub struct VFatRegularDirEntry {
     file_name: [u8; 8],
     file_extension: [u8; 3],
@@ -91,6 +91,10 @@ impl VFatRegularDirEntry {
     }
 
     pub fn get_cluster(&self) -> Cluster {
+        //if ((self.first_cluster_high as u32) << 16) + (self.first_cluster_low as u32) == 0 {
+            //println!("wtf how is this possible reeeeeeeeeeeeeeeeeeeeeeee");
+            //println!("high cluster: {}, low_cluster: {}", self.first_cluster_high, self.first_cluster_low);
+        //}
         Cluster::from(((self.first_cluster_high as u32) << 16) + (self.first_cluster_low as u32))
     }
     
@@ -219,80 +223,89 @@ fn combine_string(vec: &Vec<String>) -> String {
 impl<HANDLE: VFatHandle> Iterator for EntryIterator<HANDLE> {
     type Item = Entry<HANDLE>;
     fn next(&mut self) -> Option<Self::Item> {
-        //let entry = Entry::new(&(self.chain[self.index .. self.index + 32]), self.vfat.clone());
-        //if entry.is_end() {
-            //None
-        //} else {
-            //self.index += 32;
-            //Some(entry)
-        //}
-        //let entry = unsafe {*(&self.chain[self.index .. self.index + 32] as *const VFatDirEntry)};
-        
-        let entry = unsafe {self.chain[self.index].unknown};
-        if entry.attribute.is_lfn() {
-            let mut vec: Vec<String> = Vec::new();
-            let mut length = 0;
-            loop {
-                let lfn_entry = unsafe {self.chain[self.index].long_filename};
-                if !lfn_entry.attribute.is_lfn() {
+        //'outer: loop {
+            let entry = unsafe {self.chain[self.index].unknown};
+            if entry.attribute.is_lfn() {
+                let mut vec: Vec<String> = Vec::new();
+                let mut length = 0;
+                'inner: loop {
+                    let lfn_entry = unsafe {self.chain[self.index].long_filename};
+                    if !lfn_entry.attribute.is_lfn() {
+                        //return None;
+                        break 'inner;
+                    }
+                    self.index += 1;
+                    if lfn_entry.sequence_number > length {
+                        length = lfn_entry.sequence_number;
+                    }
+                    let mut final_name = String::new();
+                    match decode_name_from_slice(&lfn_entry.first_name) {
+                        Ok(s) => final_name.push_str(s.as_str()),
+                        Err(_) => {
+                            return None;
+                        }
+                    };
+                    match decode_name_from_slice(&lfn_entry.second_name) {
+                        Ok(s) => final_name.push_str(s.as_str()),
+                        Err(_) => {
+                            return None;
+                        }
+                    };
+                    match decode_name_from_slice(&lfn_entry.third_name) {
+                        Ok(s) => final_name.push_str(s.as_str()),
+                        Err(_) => {
+                            return None;
+                        }
+                    };
+                    if vec.len() < lfn_entry.sequence_number as usize {
+                        vec.resize(lfn_entry.sequence_number as usize, String::from(""));
+                    }
+                    vec.insert(lfn_entry.sequence_number as usize, final_name);
+
+                    //if lfn_entry.sequence_number & 0b01000000 != 0 {
+                    //break;
+                    //}
+                }
+                let lfn_name = combine_string(&vec);
+                let reg_entry = unsafe {self.chain[self.index].regular};
+                if reg_entry.get_metadata().is_end() {
+                    return None;
+                } else {
+                    self.index += 1;
+
+                    let metadata = reg_entry.get_metadata();
+                    //if metadata.get_attribute().is_archive() {
+                        //continue 'outer;
+                    //}
+                    let name = metadata.get_short_name();
+                    println!("LFN: short name: {}, long name: {}, attribute: {:#x}, is_hidden: {}, is_system: {}, is_archive: {}, is_volume: {}", name, lfn_name, metadata.get_attribute().inner(), metadata.get_attribute().is_hidden(), metadata.get_attribute().is_system(), metadata.get_attribute().is_archive(), metadata.get_attribute().is_volume());
+                    
+                    if reg_entry.get_cluster().inner() == 0 {
+                        println!("bruh wtf 0 on lfn");
+                    }
+                    return Some(Entry::from_regular_entry(reg_entry, self.vfat.clone(), lfn_name));
+                }
+            } else {
+                let reg_entry = unsafe {self.chain[self.index].regular};
+                self.index += 1;
+                let metadata = reg_entry.get_metadata();
+                //if metadata.get_attribute().is_archive() {
+                //continue 'outer;
+                //}
+                if metadata.is_end() {
                     return None;
                 }
-                self.index += 1;
-                if lfn_entry.sequence_number > length {
-                    length = lfn_entry.sequence_number;
+                if reg_entry.get_cluster().inner() == 0 {
+                    dbg!(reg_entry);
                 }
-                let mut final_name = String::new();
-                match decode_name_from_slice(&lfn_entry.first_name) {
-                    Ok(s) => final_name.push_str(s.as_str()),
-                    Err(_) => {
-                        return None;
-                    }
-                };
-                match decode_name_from_slice(&lfn_entry.second_name) {
-                    Ok(s) => final_name.push_str(s.as_str()),
-                    Err(_) => {
-                        return None;
-                    }
-                };
-                match decode_name_from_slice(&lfn_entry.third_name) {
-                    Ok(s) => final_name.push_str(s.as_str()),
-                    Err(_) => {
-                        return None;
-                    }
-                };
-                if vec.len() < lfn_entry.sequence_number as usize {
-                    vec.resize(lfn_entry.sequence_number as usize, String::from(""));
-                }
-                vec.insert(lfn_entry.sequence_number as usize, final_name);
-
-                if lfn_entry.sequence_number % 0b01000000 != 0 {
-                    break;
-                }
-                //println!("sequence number: {:#b}", lfn_entry.sequence_number);
-                //if lfn_entry.sequence_number == 1 {
-                    //break;
-                //}
+                let name = metadata.get_short_name();
+                println!("short name: {}, attribute: {:#x}, is_hidden: {}, is_system: {}, is_archive: {}, is_volume: {}"
+                    , name, metadata.get_attribute().inner(), metadata.get_attribute().is_hidden(), metadata.get_attribute().is_system(), 
+                    metadata.get_attribute().is_archive(), metadata.get_attribute().is_volume());
+                return Some(Entry::from_regular_entry(reg_entry, self.vfat.clone(), name.to_string()));
             }
-            let lfn_name = combine_string(&vec);
-            let reg_entry = unsafe {self.chain[self.index].regular};
-            //return Some(Entry::new_from_file(File::new(handle, )))
-            if reg_entry.get_metadata().is_end() {
-                return None;
-            } else {
-                self.index += 1;
-                return Some(Entry::from_regular_entry(reg_entry, self.vfat.clone(), lfn_name));
-            }
-        } else {
-            let reg_entry = unsafe {self.chain[self.index].regular};
-            let metadata = reg_entry.get_metadata();
-            if metadata.is_end() {
-                return None;
-            }
-            let name = metadata.get_short_name();
-            self.index += 1;
-            return Some(Entry::from_regular_entry(reg_entry, self.vfat.clone(), name.to_string()));
         }
-    }
+    //}
 }
 
 impl<HANDLE: VFatHandle> traits::Dir for Dir<HANDLE> {

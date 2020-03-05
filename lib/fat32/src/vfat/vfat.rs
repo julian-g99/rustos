@@ -68,8 +68,7 @@ impl<HANDLE: VFatHandle> VFat<HANDLE> {
             }
         };
         let ebpb = ebpb_option.expect("ebpb unwrap failed");
-        println!("device sector size: {}", device.sector_size());
-        dbg!(ebpb);
+        //dbg!(ebpb);
         //let partition = Partition{start: first_sector as u64 + ebpb.num_reserved_sectors as u64, num_sectors: ebpb.sectors_per_fat as u64, sector_size: ebpb.bytes_per_sector as u64};
         //println!("----------------\n start sector is: {}\n-----------------", first_sector);
         //let partition = Partition{start: 0, num_sectors: ebpb.total_logical_sectors(), sector_size: ebpb.bytes_per_sector as u64};
@@ -134,14 +133,10 @@ impl<HANDLE: VFatHandle> VFat<HANDLE> {
                     //let start_sector = curr_cluster.get_start_sector(self.sectors_per_cluster as u64, self.data_start_sector);
                     buf.resize(buf.len() + self.sectors_per_cluster as usize * self.bytes_per_sector as usize, 0);
                     self.read_cluster(curr_cluster, 0, buf.as_mut_slice())?;
-                    println!("next is: {}", next.inner());
                     curr_cluster = next;
                     clusters_read += 1;
                 },
                 Status::Free => {
-                    println!("free cluster: {}", curr_cluster.inner());
-                    println!("sectors in fat: {}", self.sectors_per_fat);
-                    println!("bytes per sector: {}", self.bytes_per_sector);
                     return ioerr!(NotFound, "Encountered a free during read_chain()");
                 },
                 Status::Bad => {
@@ -156,17 +151,19 @@ impl<HANDLE: VFatHandle> VFat<HANDLE> {
     
     ///A method to return a reference to a `FatEntry` for a cluster where the reference points directly into a cached sector.
     fn fat_entry(&mut self, cluster: Cluster) -> io::Result<&FatEntry> { //TODO: i removed the reference on FatEntry
-        println!("current cluster: {}", cluster.inner());
         let entries_per_sector = self.bytes_per_sector as u32 / 4;
         let sector_index = self.fat_start_sector + (cluster.inner() / entries_per_sector) as u64;
-        if (sector_index - self.fat_start_sector) > self.sectors_per_fat as u64 {
-            println!("oh no");
-        }
+        //if (sector_index - self.fat_start_sector) > self.sectors_per_fat as u64 {
+            //println!("oh no");
+        //}
         let offset = cluster.inner() % entries_per_sector;
         let buf = self.device.get(sector_index)?;
-        println!("sector size read: {}", buf.len());
         let fat: &[FatEntry] = unsafe{ buf.cast() };
         Ok(&fat[offset as usize])
+    }
+
+    pub fn bytes_per_cluster(&self) -> u64 {
+        self.bytes_per_sector as u64 * self.sectors_per_cluster as u64
     }
 }
 

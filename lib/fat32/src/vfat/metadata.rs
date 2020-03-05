@@ -46,11 +46,37 @@ impl From::<u8> for Attributes {
 
 impl Attributes {
     pub fn is_dir(&self) -> bool {
-        self.0 == 0x10
+        //self.0 == 0x10
+        self.0 & 0x10 != 0
+    }
+
+    
+    pub fn inner(&self) -> u8 {
+        self.0
+    }
+
+    pub fn is_hidden(&self) -> bool {
+        self.0 & 0x02 != 0
+        //self.0 == 0x02
+    }
+
+    pub fn is_archive(&self) -> bool {
+        self.0 & 0x20 != 0
+        //self.0 == 0x20
+    }
+    
+    pub fn is_system(&self) -> bool {
+        //self.0 == 0x04
+        self.0 & 0x04 != 0
     }
 
     pub fn is_lfn(&self) -> bool {
         self.0 == 0x0F
+        //self.0 & 0x0F != 0
+    }
+
+    pub fn is_volume(&self) -> bool {
+        self.0 & 0x08 != 0
     }
 }
 

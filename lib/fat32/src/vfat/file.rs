@@ -3,7 +3,7 @@ use alloc::string::String;
 use shim::io::{self, SeekFrom};
 
 use crate::traits;
-use crate::vfat::{Cluster, Metadata, VFatHandle, dir::VFatRegularDirEntry};
+use crate::vfat::{Cluster, Metadata, VFat, VFatHandle, dir::VFatRegularDirEntry};
 
 #[derive(Debug)]
 pub struct File<HANDLE: VFatHandle> {
@@ -53,7 +53,40 @@ impl<HANDLE: VFatHandle> traits::File for File<HANDLE> {
 
 impl<HANDLE: VFatHandle> io::Read for File<HANDLE> {
     fn read(&mut self, buf: &mut[u8]) -> io::Result<usize> {
-        unimplemented!("File::read()")
+        //unimplemented!("File::read()")
+        if self.metadata.get_file_size() == 0 {
+            return Ok(0);
+        }
+        let num_bytes_per_cluster = self.vfat.lock(|handle: &mut VFat<HANDLE>| -> u64 {
+            handle.bytes_per_cluster()
+        });
+        
+        let mut num_clusters = self.metadata.get_file_size() as u64 / num_bytes_per_cluster;
+        if self.metadata.get_file_size() as u64 % num_bytes_per_cluster != 0 {
+            num_clusters += 1;
+        }
+
+        let mut vec = Vec::new();
+        let result = self.vfat.lock(|handle: &mut VFat<HANDLE>| -> io::Result<usize> {
+            //println!("file first cluster is: {}, file_name is: {}", self.first_cluster.inner(), self.get_name());
+            handle.read_chain(self.first_cluster, &mut vec)
+        });
+
+        match result {
+            Err(e) => return Err(e),
+            Ok(_) => {
+                let vec_slice = &vec[..num_clusters as usize * num_bytes_per_cluster as usize];
+                if vec_slice.len() > buf.len() {
+                    buf.copy_from_slice(&vec_slice[0..buf.len()]);
+                    //println!("return greater than");
+                    return Ok(buf.len());
+                } else {
+                    buf.copy_from_slice(vec_slice);
+                    //println!("return less than");
+                    return Ok(vec_slice.len());
+                }
+            }
+        }
     }
 }
 
