@@ -91,15 +91,15 @@ impl VFatRegularDirEntry {
     }
 
     pub fn get_cluster(&self) -> Cluster {
-        //if ((self.first_cluster_high as u32) << 16) + (self.first_cluster_low as u32) == 0 {
-            //println!("wtf how is this possible reeeeeeeeeeeeeeeeeeeeeeee");
-            //println!("high cluster: {}, low_cluster: {}", self.first_cluster_high, self.first_cluster_low);
-        //}
         Cluster::from(((self.first_cluster_high as u32) << 16) + (self.first_cluster_low as u32))
     }
     
     pub fn is_dir(&self) -> bool {
         self.attribute.is_dir()
+    }
+
+    pub fn is_deleted_or_unused(&self) -> bool {
+        self.file_name[0] == 0xE5
     }
 }
 
@@ -116,6 +116,20 @@ pub struct VFatLfnDirEntry {
     second_name: [u8; 12],
     reserved: u16,
     third_name: [u8; 4]
+}
+
+impl VFatLfnDirEntry {
+    pub fn is_end(&self) -> bool {
+        self.sequence_number == 0
+    }
+
+    pub fn is_deleted_or_unused(&self) -> bool {
+        self.sequence_number == 0xE5
+    }
+
+    pub fn is_first_lfn(&self) -> bool {
+        self.sequence_number & (1 << 5) == 0
+    }
 }
 
 impl VFatLfnDirEntry {
@@ -248,42 +262,69 @@ fn combine_string(vec: &Vec<String>) -> String {
 impl<HANDLE: VFatHandle> Iterator for EntryIterator<HANDLE> {
     type Item = Entry<HANDLE>;
     fn next(&mut self) -> Option<Self::Item> {
-        let entry = unsafe {self.chain[self.index].unknown};
-        if entry.attribute.is_lfn() {
-            let mut vec: Vec<String> = Vec::new();
-            'inner: loop {
-                let lfn_entry = unsafe {self.chain[self.index].long_filename};
-                if !lfn_entry.attribute.is_lfn() {
-                    break 'inner;
+        'outer: loop {
+            let entry = unsafe {self.chain[self.index].unknown};
+            if entry.attribute.is_lfn() {
+                let mut vec: Vec<String> = Vec::new();
+                'inner1: loop {
+                    let lfn_entry = unsafe {self.chain[self.index].long_filename};
+                    if lfn_entry.is_end() {
+                        return None;
+                    } else if lfn_entry.is_deleted_or_unused() {
+                        self.index += 1;
+                        //if lfn_entry.is_first_lfn() {
+                            continue 'outer;
+                        //} else {
+                            //continue 'inner1;
+                        //}
+                    }
+                    if !lfn_entry.attribute.is_lfn() {
+                        break 'inner1;
+                    }
+                    self.index += 1;
+                    let final_name = match lfn_entry.get_lfn() {
+                        Some(s) => s,
+                        None => return None
+                    };
+                    if vec.len() < lfn_entry.sequence_number as usize {
+                        vec.resize(lfn_entry.sequence_number as usize, String::from(""));
+                    }
+                    vec.insert(lfn_entry.sequence_number as usize, final_name);
                 }
-                self.index += 1;
-                let final_name = match lfn_entry.get_lfn() {
-                    Some(s) => s,
-                    None => return None
-                };
-                if vec.len() < lfn_entry.sequence_number as usize {
-                    vec.resize(lfn_entry.sequence_number as usize, String::from(""));
+                'inner2: loop {
+                    let reg_entry = unsafe {self.chain[self.index].regular};
+                    if reg_entry.get_metadata().is_end() {
+                        return None;
+                    } else if reg_entry.is_deleted_or_unused() {
+                        self.index += 1;
+                        continue 'inner2;
+                        //continue 'outer;
+                    } else {
+                        self.index += 1;
+                        //println!("SFN of LFN: {}", reg_entry.get_metadata().get_short_name());
+                        let lfn_name = combine_string(&vec);
+                        //println!("LFN: {}", lfn_name);
+                        println!("LFN name: {}, first_cluster: {}, size: {}", lfn_name, reg_entry.get_cluster().inner(), reg_entry.file_size);
+                        let result = Entry::from_regular_entry(reg_entry, self.vfat.clone(), lfn_name);
+                        return Some(result);
+                    }
                 }
-                vec.insert(lfn_entry.sequence_number as usize, final_name);
-            }
-            let lfn_name = combine_string(&vec);
-            let reg_entry = unsafe {self.chain[self.index].regular};
-            if reg_entry.get_metadata().is_end() {
-                return None;
             } else {
+                let reg_entry = unsafe {self.chain[self.index].regular};
+                let metadata = reg_entry.get_metadata();
+                if metadata.is_end() {
+                    return None;
+                }
+                if reg_entry.is_deleted_or_unused() {
+                    self.index += 1;
+                    continue 'outer;
+                }
+                //println!("SFN: {}", reg_entry.get_metadata().get_short_name());
                 self.index += 1;
-                let result = Entry::from_regular_entry(reg_entry, self.vfat.clone(), lfn_name);
-                return Some(result);
+                println!("SFN name: {}, first_cluster: {}, size: {}", metadata.get_short_name(), reg_entry.get_cluster().inner(), reg_entry.file_size);
+                let name = metadata.get_short_name();
+                return Some(Entry::from_regular_entry(reg_entry, self.vfat.clone(), name.to_string()));
             }
-        } else {
-            let reg_entry = unsafe {self.chain[self.index].regular};
-            self.index += 1;
-            let metadata = reg_entry.get_metadata();
-            if metadata.is_end() {
-                return None;
-            }
-            let name = metadata.get_short_name();
-            return Some(Entry::from_regular_entry(reg_entry, self.vfat.clone(), name.to_string()));
         }
     }
 }

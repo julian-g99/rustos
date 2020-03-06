@@ -3,6 +3,7 @@ use core::fmt;
 use alloc::string::String;
 
 use crate::traits;
+use crate::util::SliceExt;
 use std::convert::TryInto;
 use std::str::from_utf8;
 use shim::io;
@@ -136,20 +137,26 @@ impl fmt::Debug for Metadata {
 
 fn u8_to_u32 (slice: &[u8]) -> u32{
     assert_eq!(slice.len(), 4);
-    let mut output = 0u32;
-    for i in 0..4 {
-        output += (slice[i] as u32) << (i * 8);
-    }
-    output
+    //let mut output = 0u32;
+    //for i in 0..4 {
+        //output += (slice[i] as u32) << (i * 8);
+    //}
+    //output
+    
+    let new_slice: &[u32] = unsafe{ slice.cast() };
+    return new_slice[0];
 }
 
 fn u8_to_u64 (slice: &[u8]) -> u64{
     assert_eq!(slice.len(), 8);
-    let mut output = 0u64;
-    for i in 0..8 {
-        output += (slice[i] as u64) << (i * 8);
-    }
-    output
+    //let mut output = 0u64;
+    //for i in 0..8 {
+        //output += (slice[i] as u64) << (i * 8);
+    //}
+    //output
+
+    let new_slice: &[u64] = unsafe { slice.cast() };
+    return new_slice[0];
 }
 
 fn combine_to_short_name(file_name: &[u8], file_extension: &[u8]) -> String {
@@ -233,6 +240,10 @@ impl Metadata {
         self.id == 0x00
     }
 
+    pub fn is_deleted_or_unused(&self) -> bool {
+        self.id == 0xE5
+    }
+
     pub fn get_short_name(&self) -> &String {
         &self.short_name
     }
@@ -288,7 +299,8 @@ impl traits::Metadata for Metadata {
     }
 
     fn hidden(&self) -> bool {
-        self.attribute.0 == 0x02
+        //self.attribute.0 == 0x02
+        self.attribute.is_hidden()
     }
 
     fn created(&self) -> Self::Timestamp {

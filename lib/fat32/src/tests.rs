@@ -351,7 +351,7 @@ fn hash_files_recursive<P: AsRef<Path>>(
 
     entries.sort_by(|a, b| a.name().cmp(b.name()));
     for entry in entries {
-        dbg!("Entry: {}", &entry);
+        //dbg!("Entry: {}", &entry);
         let path = path.join(entry.name());
         if entry.is_file() && !entry.name().starts_with(".BC.T") {
             use std::fmt::Write;

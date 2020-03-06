@@ -68,13 +68,6 @@ impl<HANDLE: VFatHandle> VFat<HANDLE> {
             }
         };
         let ebpb = ebpb_option.expect("ebpb unwrap failed");
-        //dbg!(ebpb);
-        //let partition = Partition{start: first_sector as u64 + ebpb.num_reserved_sectors as u64, num_sectors: ebpb.sectors_per_fat as u64, sector_size: ebpb.bytes_per_sector as u64};
-        //println!("----------------\n start sector is: {}\n-----------------", first_sector);
-        //let partition = Partition{start: 0, num_sectors: ebpb.total_logical_sectors(), sector_size: ebpb.bytes_per_sector as u64};
-        //let vfat = VFat{phantom: PhantomData, device: CachedPartition::new(device, partition), bytes_per_sector: ebpb.bytes_per_sector,
-                        //sectors_per_cluster: ebpb.sectors_per_cluster, sectors_per_fat: ebpb.sectors_per_fat,
-                        //fat_start_sector: first_sector as u64 + ebpb.num_reserved_sectors as u64, data_start_sector: first_sector as u64 + ebpb.num_reserved_sectors as u64 + ebpb.num_fats as u64 * ebpb.sectors_per_fat as u64, rootdir_cluster: Cluster::from(ebpb.rootdir_cluster as u32)};
         let partition = Partition{start: first_sector as u64, num_sectors: ebpb.total_logical_sectors(), sector_size: ebpb.bytes_per_sector as u64};
         let vfat = VFat{phantom: PhantomData, device: CachedPartition::new(device, partition), bytes_per_sector: ebpb.bytes_per_sector,
                         sectors_per_cluster: ebpb.sectors_per_cluster, sectors_per_fat: ebpb.sectors_per_fat,
@@ -91,21 +84,17 @@ impl<HANDLE: VFatHandle> VFat<HANDLE> {
         offset: usize, //CHECK: what is the unit of this offset
         buf: &mut [u8]
     ) -> io::Result<usize> {
-        //CHECK: is cluster always bigger than sector
+        if offset >= self.sectors_per_cluster as usize {
+            return ioerr!(InvalidInput, "offset given to read_cluster() is too big");
+        }
         let start_sector = cluster.get_start_sector(self.sectors_per_cluster as u64, self.data_start_sector);
-
-        //for i in start_sector..start_sector + self.sectors_per_cluster as u64 {
-            //vector.extend_from_slice(self.device.get(i)?);
-        //}
         let sector = self.device.get(start_sector + offset as u64)?;
 
         if sector.len() >= buf.len() {
             buf.copy_from_slice(&sector[..buf.len()]);
             return Ok(buf.len());
         } else {
-            //sector.resize(buf.len(), 0);
-            let sub_buffer = &mut buf[..sector.len()];
-            sub_buffer.copy_from_slice(sector);
+            buf[..sector.len()].copy_from_slice(sector);
             return Ok(sector.len());
         }
     }
@@ -119,22 +108,16 @@ impl<HANDLE: VFatHandle> VFat<HANDLE> {
         buf: &mut Vec<u8>
     ) -> io::Result<usize> {
         let mut curr_cluster = start;
-        let mut clusters_read = 0;
+        let mut bytes_read: usize = 0;
         loop {
+            buf.resize(buf.len() + self.sectors_per_cluster as usize * self.bytes_per_sector as usize, 0);
+            bytes_read += self.read_cluster(curr_cluster, 0, &mut buf[bytes_read..])?;
             match self.fat_entry(curr_cluster)?.status() {
-                Status::Eoc(v) => {
-                    buf.resize(buf.len() + self.sectors_per_cluster as usize * self.bytes_per_sector as usize, 0);
-                    let num = self.read_cluster(curr_cluster, 0, buf.as_mut_slice())?;
-                    clusters_read += 1;
-                    return Ok(clusters_read);
+                Status::Eoc(_) => {
+                    return Ok(bytes_read);
                 },
                 Status::Data(next) => {
-                    //TODO: read data from this cluster
-                    //let start_sector = curr_cluster.get_start_sector(self.sectors_per_cluster as u64, self.data_start_sector);
-                    buf.resize(buf.len() + self.sectors_per_cluster as usize * self.bytes_per_sector as usize, 0);
-                    self.read_cluster(curr_cluster, 0, buf.as_mut_slice())?;
                     curr_cluster = next;
-                    clusters_read += 1;
                 },
                 Status::Free => {
                     return ioerr!(NotFound, "Encountered a free during read_chain()");
@@ -176,11 +159,8 @@ impl<'a, HANDLE: VFatHandle> FileSystem for &'a HANDLE {
     type Entry = Entry<HANDLE>;
 
     fn open<P: AsRef<Path>>(self, path: P) -> io::Result<Self::Entry> {
-        //unimplemented!("FileSystem::open()")
-        //TODO: atm only deals with absolute path
-
         if path.as_ref().is_relative() {
-            return ioerr!(Other, "Path given to open isn't relative");
+            return ioerr!(Other, "Path given to open is relative");
         }
 
         let first_cluster = self.lock(|fat: &mut VFat<HANDLE>| -> Cluster {
@@ -201,10 +181,8 @@ impl<'a, HANDLE: VFatHandle> FileSystem for &'a HANDLE {
         for comp in iter {
             match comp {
                 Component::Normal(s) => {
-                    //curr_dir = Dir::new(self.clone(), )
                     match curr_dir.find(s)? {
                         Entry::File(f) => {
-                            //return Ok(Entry::File(f));
                             stack.push(Entry::File(f));
                         },
                         Entry::Dir(d) => {

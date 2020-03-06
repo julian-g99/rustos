@@ -1,6 +1,7 @@
 use alloc::string::String;
+use shim::ioerr;
 
-use shim::io::{self, SeekFrom};
+use shim::io::{self, SeekFrom, Seek};
 
 use crate::traits;
 use crate::vfat::{Cluster, Metadata, VFat, VFatHandle, dir::VFatRegularDirEntry};
@@ -11,7 +12,7 @@ pub struct File<HANDLE: VFatHandle> {
     first_cluster: Cluster,
     metadata: Metadata,
     name: String,
-    cursor: u32,
+    cursor: u64,
 }
 
 
@@ -54,7 +55,7 @@ impl<HANDLE: VFatHandle> traits::File for File<HANDLE> {
 
 impl<HANDLE: VFatHandle> io::Read for File<HANDLE> {
     fn read(&mut self, buf: &mut[u8]) -> io::Result<usize> {
-        if self.cursor >= self.metadata.get_file_size() {
+        if self.cursor >= self.metadata.get_file_size() as u64 {
             return Ok(0);
         }
         let mut vec = Vec::new();
@@ -67,15 +68,18 @@ impl<HANDLE: VFatHandle> io::Read for File<HANDLE> {
         match result {
             Err(e) => return Err(e),
             Ok(_) => {
-                if vec.len() > buf.len() {
-                    buf.copy_from_slice(&vec[0..buf.len()]);
-                    self.cursor += buf.len() as u32;
+                if vec.len() >= buf.len() {
+                    buf.copy_from_slice(&vec[..buf.len()]);
+                    //self.cursor += buf.len() as u64;
+                    self.seek(SeekFrom::Current(buf.len() as i64))?;
                     return Ok(buf.len());
                 } else {
                     let old_len = vec.len();
-                    vec.resize(buf.len(), 0);
-                    buf.copy_from_slice(vec.as_slice());
-                    self.cursor += old_len as u32;
+                    //vec.resize(buf.len(), 0);
+                    buf[..vec.len()].copy_from_slice(vec.as_slice());
+                    //buf.copy_from_slice(vec.as_slice());
+                    //self.cursor += old_len as u64;
+                    self.seek(SeekFrom::Current(old_len as i64))?;
                     return Ok(old_len);
                 }
             }
@@ -108,6 +112,19 @@ impl<HANDLE: VFatHandle> io::Seek for File<HANDLE> {
     /// Seeking before the start of a file or beyond the end of the file results
     /// in an `InvalidInput` error.
     fn seek(&mut self, _pos: SeekFrom) -> io::Result<u64> {
-        unimplemented!("File::seek()")
+        let position = match _pos {
+            SeekFrom::Start(p) => p as i64,
+            SeekFrom::End(p) => self.metadata.get_file_size() as i64 - 1 + p,
+            SeekFrom::Current(p) => self.cursor as i64 + p
+        };
+
+        if position < 0 {
+            return ioerr!(InvalidInput, "seeking before the start of the file");
+        } else if position > self.metadata.get_file_size() as i64 {
+            return ioerr!(InvalidInput, "seeking beyond the end of the file");
+        } else {
+            self.cursor = position as u64;
+            return Ok(position as u64);
+        }
     }
 }
