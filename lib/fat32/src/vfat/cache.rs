@@ -164,6 +164,9 @@ impl BlockDevice for CachedPartition {
         } else {
             Err(io::Error::new(io::ErrorKind::NotFound, "cannot find the cached partition"))
         }
+        //use shim::io::Write;
+        //let data_read = self.get(sector)?;
+        //buf.write(data_read)
     }
 
     fn write_sector(&mut self, sector: u64, buf: &[u8]) -> io::Result<usize> {

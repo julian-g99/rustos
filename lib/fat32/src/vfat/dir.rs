@@ -304,7 +304,7 @@ impl<HANDLE: VFatHandle> Iterator for EntryIterator<HANDLE> {
                         //println!("SFN of LFN: {}", reg_entry.get_metadata().get_short_name());
                         let lfn_name = combine_string(&vec);
                         //println!("LFN: {}", lfn_name);
-                        println!("LFN name: {}, first_cluster: {}, size: {}", lfn_name, reg_entry.get_cluster().inner(), reg_entry.file_size);
+                        //println!("LFN name: {}, first_cluster: {}, size: {}", lfn_name, reg_entry.get_cluster().inner(), reg_entry.file_size);
                         let result = Entry::from_regular_entry(reg_entry, self.vfat.clone(), lfn_name);
                         return Some(result);
                     }
@@ -321,7 +321,7 @@ impl<HANDLE: VFatHandle> Iterator for EntryIterator<HANDLE> {
                 }
                 //println!("SFN: {}", reg_entry.get_metadata().get_short_name());
                 self.index += 1;
-                println!("SFN name: {}, first_cluster: {}, size: {}", metadata.get_short_name(), reg_entry.get_cluster().inner(), reg_entry.file_size);
+                //println!("SFN name: {}, first_cluster: {}, size: {}", metadata.get_short_name(), reg_entry.get_cluster().inner(), reg_entry.file_size);
                 let name = metadata.get_short_name();
                 return Some(Entry::from_regular_entry(reg_entry, self.vfat.clone(), name.to_string()));
             }

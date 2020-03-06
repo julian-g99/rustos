@@ -68,6 +68,7 @@ impl<HANDLE: VFatHandle> VFat<HANDLE> {
             }
         };
         let ebpb = ebpb_option.expect("ebpb unwrap failed");
+        dbg!(ebpb);
         let partition = Partition{start: first_sector as u64, num_sectors: ebpb.total_logical_sectors(), sector_size: ebpb.bytes_per_sector as u64};
         let vfat = VFat{phantom: PhantomData, device: CachedPartition::new(device, partition), bytes_per_sector: ebpb.bytes_per_sector,
                         sectors_per_cluster: ebpb.sectors_per_cluster, sectors_per_fat: ebpb.sectors_per_fat,
@@ -87,15 +88,20 @@ impl<HANDLE: VFatHandle> VFat<HANDLE> {
         if offset >= self.sectors_per_cluster as usize {
             return ioerr!(InvalidInput, "offset given to read_cluster() is too big");
         }
-        let start_sector = cluster.get_start_sector(self.sectors_per_cluster as u64, self.data_start_sector);
-        let sector = self.device.get(start_sector + offset as u64)?;
+        let mut vec = Vec::new();
 
-        if sector.len() >= buf.len() {
-            buf.copy_from_slice(&sector[..buf.len()]);
+        for i in offset as u64..self.sectors_per_cluster as u64 {
+            let sector = cluster.get_start_sector(self.sectors_per_cluster as u64, self.data_start_sector) + i;
+            let data = self.device.get(sector)?;
+            vec.extend_from_slice(data);
+        }
+
+        if vec.len() >= buf.len() {
+            buf.copy_from_slice(&vec[..buf.len()]);
             return Ok(buf.len());
         } else {
-            buf[..sector.len()].copy_from_slice(sector);
-            return Ok(sector.len());
+            buf[..vec.len()].copy_from_slice(vec.as_slice());
+            return Ok(vec.len());
         }
     }
     
