@@ -7,16 +7,17 @@ use crate::vfat::{Cluster, Metadata, VFat, VFatHandle, dir::VFatRegularDirEntry}
 
 #[derive(Debug)]
 pub struct File<HANDLE: VFatHandle> {
-    pub vfat: HANDLE,
-    pub first_cluster: Cluster,
-    pub metadata: Metadata,
-    name: String
+    vfat: HANDLE,
+    first_cluster: Cluster,
+    metadata: Metadata,
+    name: String,
+    cursor: u32,
 }
 
 
 impl<HANDLE: VFatHandle> File<HANDLE> {
     pub fn new(vfat: HANDLE, first_cluster: Cluster, metadata: Metadata, name: String) -> Self{
-        File{vfat: vfat.clone(), first_cluster, metadata, name}
+        File{vfat: vfat.clone(), first_cluster, metadata, name, cursor: 0}
     }
 
     pub fn is_end(&self) -> bool {
@@ -36,7 +37,7 @@ impl<HANDLE: VFatHandle> File<HANDLE> {
         //let first_cluster = Cluster::from(entry.get_cluster());
         let first_cluster = entry.get_cluster();
         let metadata = entry.get_metadata();
-        File{vfat, first_cluster, metadata, name}
+        File{vfat, first_cluster, metadata, name, cursor: 0}
     }
 }
 
@@ -53,37 +54,29 @@ impl<HANDLE: VFatHandle> traits::File for File<HANDLE> {
 
 impl<HANDLE: VFatHandle> io::Read for File<HANDLE> {
     fn read(&mut self, buf: &mut[u8]) -> io::Result<usize> {
-        //unimplemented!("File::read()")
-        if self.metadata.get_file_size() == 0 {
+        if self.cursor >= self.metadata.get_file_size() {
             return Ok(0);
         }
-        let num_bytes_per_cluster = self.vfat.lock(|handle: &mut VFat<HANDLE>| -> u64 {
-            handle.bytes_per_cluster()
-        });
-        
-        let mut num_clusters = self.metadata.get_file_size() as u64 / num_bytes_per_cluster;
-        if self.metadata.get_file_size() as u64 % num_bytes_per_cluster != 0 {
-            num_clusters += 1;
-        }
-
         let mut vec = Vec::new();
         let result = self.vfat.lock(|handle: &mut VFat<HANDLE>| -> io::Result<usize> {
-            //println!("file first cluster is: {}, file_name is: {}", self.first_cluster.inner(), self.get_name());
             handle.read_chain(self.first_cluster, &mut vec)
         });
+        vec.resize(self.get_metadata().get_file_size() as usize, 0); //this should remove any trailing value
+        vec = Vec::from(&vec[self.cursor as usize..]);
 
         match result {
             Err(e) => return Err(e),
             Ok(_) => {
-                let vec_slice = &vec[..num_clusters as usize * num_bytes_per_cluster as usize];
-                if vec_slice.len() > buf.len() {
-                    buf.copy_from_slice(&vec_slice[0..buf.len()]);
-                    //println!("return greater than");
+                if vec.len() > buf.len() {
+                    buf.copy_from_slice(&vec[0..buf.len()]);
+                    self.cursor += buf.len() as u32;
                     return Ok(buf.len());
                 } else {
-                    buf.copy_from_slice(vec_slice);
-                    //println!("return less than");
-                    return Ok(vec_slice.len());
+                    let old_len = vec.len();
+                    vec.resize(buf.len(), 0);
+                    buf.copy_from_slice(vec.as_slice());
+                    self.cursor += old_len as u32;
+                    return Ok(old_len);
                 }
             }
         }

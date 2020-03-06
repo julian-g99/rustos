@@ -309,7 +309,7 @@ fn hash_file<T: File>(hash: &mut String, mut file: T) -> ::std::fmt::Result {
     use std::hash::Hasher;
 
     let mut rng = rand::thread_rng();
-    let mut range = Range::new(128, 8192);
+    let mut range = Range::new(128, 8192); //TODO: original value was 8192
     let mut hasher = DefaultHasher::new();
 
     let mut bytes_read = 0;
@@ -351,6 +351,7 @@ fn hash_files_recursive<P: AsRef<Path>>(
 
     entries.sort_by(|a, b| a.name().cmp(b.name()));
     for entry in entries {
+        dbg!("Entry: {}", &entry);
         let path = path.join(entry.name());
         if entry.is_file() && !entry.name().starts_with(".BC.T") {
             use std::fmt::Write;
