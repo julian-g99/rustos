@@ -1,0 +1,34 @@
+In C, there is no namespace or function overloading, the name itself should already be a unique identifier. This is why mangling isn't necessary in C.
+
+In languages like C++ and Rust, on the other hand, the presence of namespace (and in the case of C++, also overloading) necessitates mangling since the name of the function itself is not going to be enough to uniquely identify the function.
+
+One example where we would need mangling in Rust would be something like this:
+
+struct MyStruct(i32);
+
+trait Transform {
+    fn transformed_val(&self) -> i32;
+}
+
+impl MyStruct {
+    fn transformed_val(&self) -> i32 {
+        self.0
+    }
+}
+
+impl Transform for MyStruct {
+    fn transformed_val(&self) -> i32 {
+        self.0 * 2
+    }
+}
+
+
+fn main() {
+    let my_struct = MyStruct(10);
+    println!("non-trait transform: {}", my_struct.transformed_val());
+    println!("trait transform: {}", Transform::transformed_val(&my_struct));
+}
+
+
+In this program, there are two functions with the same name, but thanks to mangling, rust knows which definition to use and the two print statements print different values (10 and 20 respectively).
+

@@ -1,0 +1,2 @@
+When rustc compiles the local program, it actually gets the extern crate code as source code as opposed to compiled binary, so it's able to compile them itself. On the other hand, when it uses foreign functions, rustc doens't know how to compiler that code even if it has access to the source code.
+Also, safety is a feature and semantic that's somewhat specific to rust, so most other languages won't have similar concepts.
