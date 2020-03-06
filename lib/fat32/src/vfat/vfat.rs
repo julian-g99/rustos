@@ -4,6 +4,7 @@ use core::mem::size_of;
 
 use alloc::vec::Vec;
 
+
 use shim::io;
 use shim::ioerr;
 use shim::newioerr;
@@ -68,7 +69,7 @@ impl<HANDLE: VFatHandle> VFat<HANDLE> {
             }
         };
         let ebpb = ebpb_option.expect("ebpb unwrap failed");
-        dbg!(ebpb);
+        //dbg!(ebpb);
         let partition = Partition{start: first_sector as u64, num_sectors: ebpb.total_logical_sectors(), sector_size: ebpb.bytes_per_sector as u64};
         let vfat = VFat{phantom: PhantomData, device: CachedPartition::new(device, partition), bytes_per_sector: ebpb.bytes_per_sector,
                         sectors_per_cluster: ebpb.sectors_per_cluster, sectors_per_fat: ebpb.sectors_per_fat,

@@ -4,8 +4,9 @@ use alloc::string::String;
 
 use crate::traits;
 use crate::util::SliceExt;
-use std::convert::TryInto;
-use std::str::from_utf8;
+//use std::convert::TryInto;
+use core::convert::TryInto;
+//use std::str::from_utf8;
 use shim::io;
 use shim::ioerr;
 

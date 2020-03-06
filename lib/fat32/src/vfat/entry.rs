@@ -1,4 +1,5 @@
 use crate::traits;
+use alloc::string::String;
 use crate::vfat::{Dir, File, Metadata, VFatHandle, Cluster, dir::VFatDirEntry, dir::VFatUnknownDirEntry, dir::VFatRegularDirEntry};
 use core::fmt;
 use shim::io;

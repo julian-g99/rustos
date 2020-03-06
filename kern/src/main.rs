@@ -12,6 +12,7 @@
 mod init;
 
 extern crate alloc;
+extern crate fat32;
 
 pub mod allocator;
 pub mod console;
@@ -38,28 +39,16 @@ use fs::FileSystem;
 #[cfg_attr(not(test), global_allocator)]
 pub static ALLOCATOR: Allocator = Allocator::uninitialized();
 pub static FILESYSTEM: FileSystem = FileSystem::uninitialized();
-//const GPIO_BASE: usize = 0x3F000000 + 0x200000;
-
-//const GPIO_FSEL1: *mut u32 = (GPIO_BASE + 0x04) as *mut u32;
-//const GPIO_SET0: *mut u32 = (GPIO_BASE + 0x1C) as *mut u32;
-//const GPIO_CLR0: *mut u32 = (GPIO_BASE + 0x28) as *mut u32;
 
 fn kmain() -> ! {
     // FIXME: Start the shell.
+    use fat32::traits::FileSystem as FsTrait;
+    use fat32::traits::Dir as DirTrait;
+    use fat32::vfat::{Dir, Entry};
+    use core::iter::Iterator;
+    use core::iter;
+    use shim::path::Path;
     let duration = Duration::from_millis(1000);
-     ////getting the gpio
-    //let mut pin_16 = Gpio::new(16).into_output();
-    
-    //GPIO_FSEL1.write_volatile(1 << 18);
-    //loop {
-        ////GPIO_SET0.write_volatile(1 << 16);
-        //pin_16.set();
-        //spin_sleep(duration);
-        ////GPIO_CLR0.write_volatile(1 << 16);
-        //pin_16.clear();
-        //spin_sleep(duration);
-    //}
-    
     spin_sleep(duration);
 
     //NOTE: this is code from the lab3 skeleton
@@ -69,6 +58,20 @@ fn kmain() -> ! {
     }
 
     kprintln!("Welcome to cs3210!");
+    kprintln!("Files in the root: ");
+    
+    let dir = match(&FILESYSTEM).open_dir(Path::new("/")) {
+        Err(_) => panic!("Failed to read dir entries"),
+        Ok(d) => d
+    };
+    //let iter = dir.entries().expect();
+    //let _:() = iter.next();
+    
+    use crate::fat32::traits::Entry as EntryTrait;
+    for e in dir.entries().expect("hello") {
+        kprintln!("entry name: {}", e.name());
+    }
+
     shell::shell("> ");
     //above skeleton code
 }

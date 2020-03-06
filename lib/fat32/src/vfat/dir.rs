@@ -4,7 +4,8 @@ use alloc::vec::Vec;
 use core::fmt;
 
 use shim::const_assert_size;
-use std::char::decode_utf16;
+use core::char::decode_utf16;
+use crate::alloc::string::ToString;
 use shim::ffi::OsStr;
 use shim::io;
 use shim::newioerr;

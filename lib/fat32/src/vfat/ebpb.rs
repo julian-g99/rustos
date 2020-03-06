@@ -57,7 +57,7 @@ impl BiosParameterBlock {
             Ok(_) => {
                 let ebpb = unsafe{ *(buf.as_mut_ptr() as *mut BiosParameterBlock) };
                 if ebpb.boot_signature != 0xAA55 {
-                    dbg!(ebpb.signature);
+                    //dbg!(ebpb.signature);
                     return Err(Error::BadSignature);
                 }
                 return Ok(ebpb);

@@ -3,6 +3,7 @@ use shim::io;
 use shim::ioerr;
 
 use fat32::traits::BlockDevice;
+use crate::spin_sleep;
 
 extern "C" {
     /// A global representing the last SD controller error that occured.
@@ -31,6 +32,11 @@ extern "C" {
 
 // FIXME: Define a `#[no_mangle]` `wait_micros` function for use by `libsd`.
 // The `wait_micros` C signature is: `void wait_micros(unsigned int);`
+#[no_mangle]
+fn wait_micros(micros: u32) {
+    let duration = Duration::from_micros(micros as u64);
+    spin_sleep(duration);
+}
 
 /// A handle to an SD card controller.
 #[derive(Debug)]
@@ -43,7 +49,15 @@ impl Sd {
     /// with atomic memory access, but we can't use it yet since we haven't
     /// written the memory management unit (MMU).
     pub unsafe fn new() -> Result<Sd, io::Error> {
-        unimplemented!("Sd::new()")
+        //unimplemented!("Sd::new()")
+        unsafe {
+            match sd_init() {
+                0 => Ok(Sd),
+                -1 => ioerr!(TimedOut, "sd init timed out"),
+                -2 => ioerr!(Other, "failed to send command to SD controller"),
+                _ => ioerr!(Other, "Sd::new() got output that's neither 0, -1, nor -2")
+            }
+        }
     }
 }
 
@@ -61,7 +75,34 @@ impl BlockDevice for Sd {
     ///
     /// An error of kind `Other` is returned for all other errors.
     fn read_sector(&mut self, n: u64, buf: &mut [u8]) -> io::Result<usize> {
-        unimplemented!("Sd::read_sector()")
+        //unimplemented!("Sd::read_sector()")
+        
+
+        //checking align
+        let ptr = buf.as_mut_ptr();
+        unsafe {
+            if ptr.align_offset(4) != 0 {
+                panic!("Buffer given to read_sector() isn't aligned to 4 bytes");
+            }
+            if buf.len() < 512 {
+                panic!("Buffer given to read_sector() is less than 512 bytes");
+            }
+            match sd_readsector(n as i32, ptr) {
+                n if n > 0 => {
+                    return Ok(n as usize);
+                },
+                0 => {
+                    if sd_err == -1 {
+                        return ioerr!(TimedOut, "sd_readsector() timed out");
+                    } else if sd_err == -2 {
+                        return ioerr!(Other, "failed to send command to SD controller");
+                    } else {
+                        return ioerr!(Other, "sd_readsector() error but other error code");
+                    }
+                },
+                _ => return ioerr!(Other, "sd_readsector() returned negative value")
+            }
+        }
     }
 
     fn write_sector(&mut self, _n: u64, _buf: &[u8]) -> io::Result<usize> {
