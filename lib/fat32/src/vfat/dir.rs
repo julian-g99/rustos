@@ -242,15 +242,13 @@ fn decode_name_from_slice(slice: &[u8]) -> io::Result<String> {
     let mut output = String::new();
     let casted_slice = unsafe {slice.cast::<u16>()};
     //let iter = unsafe {decode_utf16(slice.cast::<u16>().iter().cloned())};
-    let mut iter = decode_utf16(casted_slice.iter().cloned());
-    panic!("val: {}", iter.next().unwrap().unwrap());
-    panic!("hello");
+    let iter = decode_utf16(casted_slice.iter().cloned());
     for i in iter {
         match i {
             Ok('\u{0000}') => break,
             Ok('\u{ffff}') => break,
             Ok(c) => output.push(c),
-            Err(e) => return ioerr!(Other, "cannot decode utf16 string")
+            Err(_) => return ioerr!(Other, "cannot decode utf16 string")
         }
     }
     return Ok(output);
