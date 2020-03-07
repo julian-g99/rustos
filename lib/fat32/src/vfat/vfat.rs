@@ -1,7 +1,6 @@
 use core::fmt::Debug;
 use core::marker::PhantomData;
 use core::mem::size_of;
-use console::kprintln;
 
 use alloc::vec::Vec;
 

@@ -138,26 +138,26 @@ impl fmt::Debug for Metadata {
 
 fn u8_to_u32 (slice: &[u8]) -> u32{
     assert_eq!(slice.len(), 4);
-    //let mut output = 0u32;
-    //for i in 0..4 {
-        //output += (slice[i] as u32) << (i * 8);
-    //}
-    //output
+    let mut output = 0u32;
+    for i in 0..4 {
+        output += (slice[i] as u32) << (i * 8);
+    }
+    output
     
-    let new_slice: &[u32] = unsafe{ slice.cast() };
-    return new_slice[0];
+    //let new_slice: &[u32] = unsafe{ slice.cast() };
+    //return new_slice[0];
 }
 
 fn u8_to_u64 (slice: &[u8]) -> u64{
     assert_eq!(slice.len(), 8);
-    //let mut output = 0u64;
-    //for i in 0..8 {
-        //output += (slice[i] as u64) << (i * 8);
-    //}
-    //output
+    let mut output = 0u64;
+    for i in 0..8 {
+        output += (slice[i] as u64) << (i * 8);
+    }
+    output
 
-    let new_slice: &[u64] = unsafe { slice.cast() };
-    return new_slice[0];
+    //let new_slice: &[u64] = unsafe { slice.cast() };
+    //return new_slice[0];
 }
 
 fn combine_to_short_name(file_name: &[u8], file_extension: &[u8]) -> String {

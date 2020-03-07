@@ -110,13 +110,13 @@ impl VFatRegularDirEntry {
 #[derive(Copy, Clone)]
 pub struct VFatLfnDirEntry {
     sequence_number: u8,
-    first_name: [u8; 10],
+    first_name: [u16; 5],
     attribute: Attributes,
     file_type: u8,
     checksum: u8,
-    second_name: [u8; 12],
+    second_name: [u16; 6],
     reserved: u16,
-    third_name: [u8; 4]
+    third_name: [u16; 2]
 }
 
 impl VFatLfnDirEntry {
@@ -238,11 +238,9 @@ impl<HANDLE: VFatHandle> EntryIterator<HANDLE> {
     }
 }
 
-fn decode_name_from_slice(slice: &[u8]) -> io::Result<String> {
+fn decode_name_from_slice(slice: &[u16]) -> io::Result<String> {
     let mut output = String::new();
-    let casted_slice = unsafe {slice.cast::<u16>()};
-    //let iter = unsafe {decode_utf16(slice.cast::<u16>().iter().cloned())};
-    let iter = decode_utf16(casted_slice.iter().cloned());
+    let iter = decode_utf16(slice.iter().cloned());
     for i in iter {
         match i {
             Ok('\u{0000}') => break,

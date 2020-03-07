@@ -10,6 +10,16 @@ impl From<u32> for Cluster {
     }
 }
 
+fn u8_to_u16(slice: &[u8]) -> u16 {
+    assert_eq!(slice.len(), 2);
+    let mut output = 0u16;
+    for i in 0..2 {
+        output += (slice[i] as u16) << (i * 8);
+    }
+
+    output
+}
+
 // TODO: Implement any useful helper methods on `Cluster`.
 impl Cluster {
     pub fn get_start_sector(&self, sectors_per_cluster: u64, data_start_sector: u64) -> u64 {
@@ -22,10 +32,12 @@ impl Cluster {
 
     pub fn first_cluster_of_entry(slice: &[u8]) -> Self{
         //assert_eq!(slice.len(), 32);
-        let high: &[u16] = unsafe {&slice[20..22].cast()};
-        let low: &[u16] = unsafe {&slice[26..28].cast()};
-        let high_val = high[0] as u32;
-        let low_val = low[0] as u32;
+        //let high: &[u16] = unsafe {&slice[20..22].cast()};
+        //let low: &[u16] = unsafe {&slice[26..28].cast()};
+        //let high_val = high[0] as u32;
+        //let low_val = low[0] as u32;
+        let high_val = u8_to_u16(&slice[20..22]) as u32;
+        let low_val = u8_to_u16(&slice[26..28]) as u32;
         Cluster::from((high_val << 16) + low_val)
         
         //let low = &slice[26..28];
