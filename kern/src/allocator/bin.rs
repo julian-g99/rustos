@@ -1,10 +1,13 @@
 use core::alloc::Layout;
 use core::fmt;
 use core::ptr;
+use core::mem;
+use core::convert::TryInto;
 
 use crate::allocator::linked_list::LinkedList;
 use crate::allocator::util::*;
 use crate::allocator::LocalAlloc;
+use crate::console::kprintln;
 
 /// A simple allocator that allocates based on size classes.
 ///   bin 0 (2^3 bytes)    : handles allocations in (0, 2^3]
@@ -20,6 +23,17 @@ pub struct Allocator {
 	free_lists: [LinkedList; 30],
 	start: usize,
 	end: usize
+}
+
+fn get_bin_size(layout: Layout) -> usize {
+    let mut smallest_bin = 0;
+    for i in 0..30 {
+        if layout.size() + mem::size_of::<usize>() <= 2 << (i + 3) {
+            smallest_bin = i;
+            break;
+        }
+    }
+    smallest_bin
 }
 
 impl Allocator {
@@ -68,33 +82,28 @@ impl LocalAlloc for Allocator {
 	/// or `layout` does not meet this allocator's
 	/// size or alignment constraints.
 	unsafe fn alloc(&mut self, layout: Layout) -> *mut u8 {
-		//TODO: get the appropriate bin size
-		//if layout.size() < (2 << 3) {
-			//return core::ptr::null_mut();
-		//}
-		let mut smallest_bin = 0;
-		for i in 0..30 {
-			if layout.size() <= 2 << (i + 3) { //TODO: take metadata into account
-				smallest_bin = i;
-				break;
-			}
-		}
+        let smallest_bin = get_bin_size(layout);
 
         let chunk_start = match self.free_lists[smallest_bin].peek() {
             None => {
+                panic!("failed layout size: {}", layout.size());
                 return core::ptr::null_mut();
             },
             Some(ptr) => {
-                ptr.offset(1)
+                panic!("success layout size: {}", layout.size());
+                ptr.offset(mem::size_of::<usize>().try_into().unwrap())
             }
         } as usize;
         let chunk_end = chunk_start + (2 << smallest_bin);
 
         if chunk_end.saturating_sub(align_up(chunk_start, layout.align())) >= layout.size() {
             self.free_lists[smallest_bin].pop().expect("Free list pop failed while peek succeeded");
-            return chunk_start as *mut u8;
+            //return chunk_start as *mut u8;
+            align_up(chunk_start, layout.align()) as *mut u8
+        } else {
+            panic!("fail2 layout size: {}", layout.size());
+            core::ptr::null_mut()
         }
-        align_up(chunk_start, layout.align()) as *mut u8
 	}
 
 	/// Deallocates the memory referenced by `ptr`.
@@ -111,7 +120,8 @@ impl LocalAlloc for Allocator {
 	/// Parameters not meeting these conditions may result in undefined
 	/// behavior.
 	unsafe fn dealloc(&mut self, ptr: *mut u8, layout: Layout) {
-        unimplemented!()
+        let smallest_bin = get_bin_size(layout);
+        self.free_lists[smallest_bin].push(ptr as *mut usize);
 	}
 }
 

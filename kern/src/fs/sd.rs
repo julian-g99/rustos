@@ -34,7 +34,7 @@ extern "C" {
 // The `wait_micros` C signature is: `void wait_micros(unsigned int);`
 #[no_mangle]
 fn wait_micros(micros: u32) {
-    let duration = Duration::from_micros(micros as u64);
+    let duration = Duration::from_micros(micros as u64 * 200);
     spin_sleep(duration);
 }
 

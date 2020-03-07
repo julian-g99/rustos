@@ -240,13 +240,17 @@ impl<HANDLE: VFatHandle> EntryIterator<HANDLE> {
 
 fn decode_name_from_slice(slice: &[u8]) -> io::Result<String> {
     let mut output = String::new();
-    let iter = unsafe {decode_utf16(slice.cast::<u16>().iter().cloned())};
+    let casted_slice = unsafe {slice.cast::<u16>()};
+    //let iter = unsafe {decode_utf16(slice.cast::<u16>().iter().cloned())};
+    let mut iter = decode_utf16(casted_slice.iter().cloned());
+    panic!("val: {}", iter.next().unwrap().unwrap());
+    panic!("hello");
     for i in iter {
         match i {
             Ok('\u{0000}') => break,
             Ok('\u{ffff}') => break,
             Ok(c) => output.push(c),
-            Err(e) => {return ioerr!(Other, "cannot decode utf16 string")}
+            Err(e) => return ioerr!(Other, "cannot decode utf16 string")
         }
     }
     return Ok(output);
@@ -273,11 +277,7 @@ impl<HANDLE: VFatHandle> Iterator for EntryIterator<HANDLE> {
                         return None;
                     } else if lfn_entry.is_deleted_or_unused() {
                         self.index += 1;
-                        //if lfn_entry.is_first_lfn() {
-                            continue 'outer;
-                        //} else {
-                            //continue 'inner1;
-                        //}
+                        continue 'outer;
                     }
                     if !lfn_entry.attribute.is_lfn() {
                         break 'inner1;

@@ -44,10 +44,12 @@ impl LocalAlloc for Allocator {
 	/// size or alignment constraints.
 	unsafe fn alloc(&mut self, layout: Layout) -> *mut u8 {
 		let start = align_up(self.current, layout.align());
-		if start.saturating_add(layout.size()) <= self.end {
-			self.current = align_up(start.saturating_add(layout.size()), layout.align());
+		if align_up(start.saturating_add(layout.size()), layout.align()) <= self.end {
+            self.current = align_up(start.saturating_add(layout.size()), layout.align());
+            //self.current = start.saturating_add(layout.size());
 			start as *mut u8
 		} else {
+            panic!("requested size is: {}, remaining size is: {}", layout.size(), self.end - self.current);
 			core::ptr::null_mut()
 		}
 	}

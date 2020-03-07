@@ -51,12 +51,13 @@ fn kmain() -> ! {
     let duration = Duration::from_millis(1000);
     spin_sleep(duration);
 
+
     //NOTE: this is code from the lab3 skeleton
     unsafe {
         ALLOCATOR.initialize();
         FILESYSTEM.initialize();
     }
-
+    
     kprintln!("Welcome to cs3210!");
     kprintln!("Files in the root: ");
     
@@ -66,12 +67,22 @@ fn kmain() -> ! {
     };
     //let iter = dir.entries().expect();
     //let _:() = iter.next();
+    kprintln!("fs works");
     
     use crate::fat32::traits::Entry as EntryTrait;
-    for e in dir.entries().expect("hello") {
-        kprintln!("entry name: {}", e.name());
-    }
+    //kprintln!("num entries: {}", dir.entries().expect("reeee").len());
+    let mut iter = dir.entries().expect("entry iterator");
+    kprintln!("first entry: {}", iter.next().expect("first entry").name());
+    //for e in dir.entries().expect("hello") {
+        //panic!("one time for the one time");
+        //kprintln!("entry name: {}", e.name());
+    //}
+    panic!("dir success");
 
-    shell::shell("> ");
+    //shell::shell("> ");
     //above skeleton code
+    panic!("pls man");
+    loop {
+
+    }
 }
