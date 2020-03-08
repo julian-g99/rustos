@@ -238,7 +238,7 @@ pub fn shell(prefix: &str) {
     kprintln!("Hello! Welcome to the shell!");
     let mut cwd = PathBuf::from("/");
     'outer: loop {
-        kprintln!("{:?}", cwd);
+        kprintln!("{}", cwd.display());
         kprint!("{}", prefix);
         let mut buffer = [0u8; 512];
         let mut input = StackVec::new(&mut buffer);
