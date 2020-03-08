@@ -136,19 +136,19 @@ impl VFatLfnDirEntry {
 impl VFatLfnDirEntry {
     fn get_lfn(&self) -> Option<String> {
         let mut final_name = String::new();
-        match decode_name_from_slice(&self.first_name) {
+        match decode_name_from_slice(&{self.first_name}) {
             Ok(s) => final_name.push_str(s.as_str()),
             Err(_) => {
                 return None;
             }
         };
-        match decode_name_from_slice(&self.second_name) {
+        match decode_name_from_slice(&{self.second_name}) {
             Ok(s) => final_name.push_str(s.as_str()),
             Err(_) => {
                 return None;
             }
         };
-        match decode_name_from_slice(&self.third_name) {
+        match decode_name_from_slice(&{self.third_name}) {
             Ok(s) => final_name.push_str(s.as_str()),
             Err(_) => {
                 return None;

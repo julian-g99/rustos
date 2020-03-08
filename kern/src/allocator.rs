@@ -4,7 +4,7 @@ mod util;
 mod bin;
 mod bump;
 
-type AllocatorImpl = bump::Allocator; //TODO: change this to bin when done
+type AllocatorImpl = bin::Allocator; //TODO: change this to bin when done
 
 #[cfg(test)]
 mod tests;

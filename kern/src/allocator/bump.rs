@@ -1,5 +1,6 @@
 use core::alloc::Layout;
 use core::ptr;
+use crate::console::kprintln;
 
 use crate::allocator::util::*;
 use crate::allocator::LocalAlloc;
@@ -43,9 +44,16 @@ impl LocalAlloc for Allocator {
 	/// or `layout` does not meet this allocator's
 	/// size or alignment constraints.
 	unsafe fn alloc(&mut self, layout: Layout) -> *mut u8 {
-		let start = align_up(self.current, layout.align());
+        //kprintln!("the alignment asked for is: {}", layout.align());
+        let align = if layout.align() >= 4 {
+            layout.align()
+        } else {
+            4
+        };
+		//let start = align_up(self.current, layout.align());
+		let start = align_up(self.current, align);
 		if start.saturating_add(layout.size()) <= self.end {
-            self.current = align_up(start.saturating_add(layout.size()), layout.align());
+            self.current = align_up(start.saturating_add(layout.size()), align);
 			start as *mut u8
 		} else {
             panic!("requested size is: {}, remaining size is: {}", layout.size(), self.end - self.current);

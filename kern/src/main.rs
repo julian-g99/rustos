@@ -57,32 +57,7 @@ fn kmain() -> ! {
         ALLOCATOR.initialize();
         FILESYSTEM.initialize();
     }
-    
-    kprintln!("Welcome to cs3210!");
-    kprintln!("Files in the root: ");
-    
-    let dir = match(&FILESYSTEM).open_dir(Path::new("/")) {
-        Err(_) => panic!("Failed to read dir entries"),
-        Ok(d) => d
-    };
-    //let iter = dir.entries().expect();
-    //let _:() = iter.next();
-    kprintln!("fs works");
-    
-    use crate::fat32::traits::Entry as EntryTrait;
-    //kprintln!("num entries: {}", dir.entries().expect("reeee").len());
-    let mut iter = dir.entries().expect("entry iterator");
-    kprintln!("first entry: {}", iter.next().expect("first entry").name());
-    //for e in dir.entries().expect("hello") {
-        //panic!("one time for the one time");
-        //kprintln!("entry name: {}", e.name());
-    //}
-    panic!("dir success");
-
-    //shell::shell("> ");
-    //above skeleton code
-    panic!("pls man");
     loop {
-
+        shell::shell("> "); //this way it never returns
     }
 }
