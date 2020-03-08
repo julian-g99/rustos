@@ -31,21 +31,8 @@ impl Cluster {
     }
 
     pub fn first_cluster_of_entry(slice: &[u8]) -> Self{
-        //assert_eq!(slice.len(), 32);
-        //let high: &[u16] = unsafe {&slice[20..22].cast()};
-        //let low: &[u16] = unsafe {&slice[26..28].cast()};
-        //let high_val = high[0] as u32;
-        //let low_val = low[0] as u32;
         let high_val = u8_to_u16(&slice[20..22]) as u32;
         let low_val = u8_to_u16(&slice[26..28]) as u32;
         Cluster::from((high_val << 16) + low_val)
-        
-        //let low = &slice[26..28];
-        //let high = &slice[20..22];
-
-        //let high_val = ((high[1] as u32) << 8) + (high[0] as u32);
-        //let low_val = ((low[1] as u32) << 8 )+ (low[0] as u32);
-        //Cluster::from((high_val << 16) + low_val)
-
     }
 }

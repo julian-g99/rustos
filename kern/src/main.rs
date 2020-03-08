@@ -31,6 +31,7 @@ use pi::gpio::Function;
 use core::time::Duration;
 use pi::uart::MiniUart;
 use core::fmt::Write;
+use pi::atags::{Atag, Atags};
 
 //NOTE: code from skeleton
 use allocator::Allocator;
@@ -50,7 +51,6 @@ fn kmain() -> ! {
     use shim::path::Path;
     let duration = Duration::from_millis(1000);
     spin_sleep(duration);
-
 
     //NOTE: this is code from the lab3 skeleton
     unsafe {
