@@ -1,0 +1,1 @@
+It's for faster access time. If this alignment isn't enforced, then we might need more than one reads for some bigger date size (when we don't have to with careful packing). Also, since word reads are faster than reads of smaller granularity on some processor, that also gives benefit.

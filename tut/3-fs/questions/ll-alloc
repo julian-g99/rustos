@@ -1,0 +1,1 @@
+If we had used a regular linked list, we would need more than one read to access something. Keeping in mind the idea of spatial locality in systems programming, it's helpful to keep the pointer and the data close to each other.

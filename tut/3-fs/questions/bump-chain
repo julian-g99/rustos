@@ -1,0 +1,4 @@
+A data structure like vec would do something like this:
+- knowing the length and capacity of the underlying memory, it maintains a variable called end
+- on push, it looks to see if it's possible to push without going past the end. If so, then it just pushes without using any unsafe features.
+- otherwise, it calls alloc to get a new area of contiguous memory for use.

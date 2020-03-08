@@ -1,0 +1,3 @@
+The benefit here is that if we are really careful with the unsafe blocks that we are writing, then it's impossible for the end users to write unsafe code (as long as they're not using unsafe blocks of their own).
+
+This is something that's not possible with a language like C since you can do pretty much anything unsafe without warning. In fact, the notion of memory safety on the level that rust reinforces just doesn't exist in C.

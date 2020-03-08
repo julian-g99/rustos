@@ -1,0 +1,5 @@
+Here is the value in the command line tags:
+
+cm2708_fb.fbwidth=656 bcm2708_fb.fbheight=416 bcm2708_fb.fbswap=1 dma.dmachans=0x7f35 bcm2709.boardrev=0xa020d3 bcm2709.serial=0x1bb85a62 bcm2709.uart_clock=48000000 bcm2709.disk_led_gpio=29 bcm2709.disk_led_active_low=0 smsc95xx.macaddr=B8:27:EB:B8:5A:62 vc_mem.mem_base=0x3ec00000 vc_mem.mem_size=0x40000000  console=ttyS0,115200 kgdboc=ttyS0,115200 console=tty1 root=/dev/mmcblk0p2 rootfstype=ext4 rootwait
+
+These parameters probably control settings of the broadcom processor.

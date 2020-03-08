@@ -1,0 +1,9 @@
+I actually initially wanted to do a more complicated design of the bin allocator that addresssed fragmentation. This implementation would work as the follows:
+
+- On init, we recursively split the region into blocks of sizes as large as possible. That is, creating as many 2^33 blocks as possible, and go down in size when needed, until we cannot even assign blocks of 2^3.
+- On allocate, look at the free list for the most appropriate bin size, and return if that list isn't empty. If it is, look at the bigger bin sizes, split them recursively to the most appropriate size and return.
+- On deallocate, if there is another free block to the left or right with the same bin size, consolidate them, and do this process recursively.
+
+The invariant this implementation maintains is that:
+- The free lists combined give you all the free region, as long as they are bigger than 2^3.
+- There will never be two consecutive free blocks of the same size.

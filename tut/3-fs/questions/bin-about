@@ -1,0 +1,7 @@
+I'm essentially treating my bin allocator as an extension of the bump allocator.
+
+On init, there is nothing in the free list bins. When the allocator doesn't find anything in the bins, it looks into the memory region from curr_start to end, and allocate a chunk of memory of the smallest bin size that conforms to the layout.
+
+When the global region is used, curr_start gets pushed forward just like a bump allocator. The key invariant here is that the memory region from curr_start to end will always be free.
+
+The way this deals with the leaking problem is that on free, the chunks are added onto the corresponding free list.
