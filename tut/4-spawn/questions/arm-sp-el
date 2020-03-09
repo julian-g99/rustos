@@ -1,0 +1,2 @@
+We would need to put address B in SP_EL0 and then set SPSR_ELx[0] to 0.
+We can adjust the value of the SP with an ADD instruction.

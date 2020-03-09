@@ -45,6 +45,9 @@ use process::GlobalScheduler;
 use traps::irq::Irq;
 use vm::VMManager;
 
+//imports of lab 4
+use aarch64::current_el;
+
 #[cfg_attr(not(test), global_allocator)]
 pub static ALLOCATOR: Allocator = Allocator::uninitialized();
 pub static FILESYSTEM: FileSystem = FileSystem::uninitialized();
@@ -68,7 +71,13 @@ fn kmain() -> ! {
         ALLOCATOR.initialize();
         FILESYSTEM.initialize();
     }
-    loop {
-        shell::shell("> "); //this way it never returns
+
+    unsafe {
+        kprintln!("current exception level: {}", current_el());
     }
+
+    loop {}
+    //loop {
+        //shell::shell("> "); //this way it never returns
+    //}
 }

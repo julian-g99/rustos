@@ -1,0 +1,3 @@
+To set the PC to address `A` using ret, we just need to write A to lr.
+
+Using eret, we need to first write the address `A` to ELR_ELx, where x is the current exception level, and then call eret. This also changes the pstate.

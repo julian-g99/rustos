@@ -1,0 +1,1 @@
+w30 and lr alias x30. Note that with w30 we can only access the lower 32 bits. All of these are register r30, but I don't believe it's possible to access r30 directly.

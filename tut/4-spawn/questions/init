@@ -1,0 +1,21 @@
+The start function does what the lab instruction page says it does.
+
+The zero_bss() function zeros out the BSS (block started by symbol) of the memory, which is a portion of an objet file containing statically allocated variables which are not initialized.
+
+The switch_to_el2() does basically what one expects. If the current EL is 3, then it switches to EL2. Specifically, this involves doing the following:
+- Setting certain fields of the SCR to make it so that:
+    - EL1 and EL0 are non-secure, meaning that they cannot access secure memory
+    - Disables SMC instructions at EL1 and above
+    - Enables HVC instructuions at EL3 and EL2, and non-secure EL1
+    - The next lower level (EL2 if present, EL1 otherwise) becomes AArch64
+- Settings fields of SPSR so that:
+    - Making the AArch32 mode that an exception was taken from to be reserved, effectively saying that the bheavior is constrained unpredictable
+    - Prevents FIQ exceptions from being issued
+    - Prevents IRQ exceptions from being issued
+    - Prevents SError exceptions from being issued
+    - Watchpoint, breakpoint, and software step exceptions targeted at the current EL are masked
+- Finally, it calls eret so that we go to EL1.
+
+The switch_to_el1() function does very similar things as switch_to_el2(), by also setting the fields of the necessary registers and then calling eret (this isn't implemented in the skeleton code yet).
+
+Finally, the kinit() function itself calls all the above functions and then calls kmain()

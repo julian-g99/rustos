@@ -1,0 +1,3 @@
+In order to determine the current exception level, we do the following:
+- execute `mrs x1, CurrentEL` to load the value of CurrentEL into x1
+- inspect the value in x1
