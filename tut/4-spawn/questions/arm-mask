@@ -1,0 +1,3 @@
+I would do this using the MSR instruction, specifically
+
+MSR DAIFSET, #IRQ_bit

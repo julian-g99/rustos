@@ -1,0 +1,9 @@
+Consider a cbz instruction as the following:
+    cbz x0, label
+
+It will compar ethe value in x0 with the immediate #0, and jump to label if they're equal. Consider this sequence of instructions:
+    mov x1, 0
+    cmp x0, x1
+    b label
+
+Other than the fact that cbz is shorter, it also does not change the condition flags.

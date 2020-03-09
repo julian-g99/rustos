@@ -1,0 +1,3 @@
+mov x0, #E
+movk x0, #ABCD, LSL, #1
+msr ELR_EL1, x0

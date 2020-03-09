@@ -1,0 +1,16 @@
+source address in x0
+dest address in x1
+num bytes in x2
+
+* using x3 for buffer
+
+memcpy:
+    cmp x2, #0
+    breq END
+    ldrb x3, [x0], #1
+    strb x3, [x1], #1
+    sub, x2, x2, #1
+    b memcpy
+
+    END:
+        ret
