@@ -46,7 +46,7 @@ use traps::irq::Irq;
 use vm::VMManager;
 
 //imports of lab 4
-use aarch64::current_el;
+use aarch64::{brk, current_el};
 
 #[cfg_attr(not(test), global_allocator)]
 pub static ALLOCATOR: Allocator = Allocator::uninitialized();
@@ -75,6 +75,8 @@ fn kmain() -> ! {
     unsafe {
         kprintln!("current exception level: {}", current_el());
     }
+
+    brk!(2);
 
     loop {}
     //loop {
