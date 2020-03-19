@@ -156,6 +156,7 @@ defreg!(ESR_EL1, [
 
     ISS_HSVC_IMM [15-00], // An immediate value for HVC/SVC
     ISS_BRK_CMMT [15-00], // Comment
+    IFSC [5-0],
 ]);
 
 // (ref. D13.2.39 Fault Address Register)
