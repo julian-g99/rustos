@@ -10,6 +10,8 @@ use pi::interrupt::{Controller, Interrupt};
 use crate::console::kprintln;
 use crate::shell::shell;
 
+use aarch64::regs::ELR_EL2;
+
 use self::syndrome::Syndrome;
 use self::syscall::handle_syscall;
 
@@ -45,14 +47,12 @@ pub struct Info {
 #[no_mangle]
 pub extern "C" fn handle_exception(info: Info, esr: u32, tf: &mut TrapFrame) {
     //unimplemented!("handle_exception");
-    //kprintln!("info: {:?}, esr: {}", info, esr);
-    //loop {
-        //aarch64::nop();
-    //}
     let syndrome = Syndrome::from(esr);
     match syndrome {
         Syndrome::Brk(val) => {
             shell("oh no something is wrong: ");
+            let prev_elr = tf.get_elr();
+            tf.set_elr(prev_elr + 4);
         },
         _ => {
             loop {

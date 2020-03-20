@@ -234,7 +234,7 @@ fn clear_screen() {
 /// Starts a shell using `prefix` as the prefix for each line. This function
 /// returns if the `exit` command is called.
 pub fn shell(prefix: &str) {
-    clear_screen();
+    //clear_screen();
     kprintln!("Hello! Welcome to the shell!");
     let mut cwd = PathBuf::from("/");
     'outer: loop {

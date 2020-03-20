@@ -72,14 +72,9 @@ fn kmain() -> ! {
         FILESYSTEM.initialize();
     }
 
-    unsafe {
-        kprintln!("current exception level: {}", current_el());
-    }
-
     brk!(2);
 
-    loop {}
-    //loop {
-        //shell::shell("> "); //this way it never returns
-    //}
+    loop {
+        shell::shell("> "); //this way it never returns
+    }
 }

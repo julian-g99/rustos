@@ -1,6 +1,7 @@
 .global context_save
 context_save:
     // FIXME: Save the remaining context to the stack.
+    stp lr, xzr, [SP, #-16]!
     stp x26, x27, [SP, #-16]!
     stp x24, x25, [SP, #-16]!
     stp x22, x23, [SP, #-16]!
@@ -56,23 +57,23 @@ context_restore:
     ldp x20, x19, [SP], #16
     msr SP_EL0, x20
     msr TPIDR_EL0, x19
-    
-    ldp q0, q1, [SP], #16
-    ldp q2, q3, [SP], #16
-    ldp q4, q5, [SP], #16
-    ldp q6, q7, [SP], #16
-    ldp q8, q9, [SP], #16
-    ldp q10, q11, [SP], #16
-    ldp q12, q13, [SP], #16
-    ldp q14, q15, [SP], #16
-    ldp q16, q17, [SP], #16
-    ldp q18, q19, [SP], #16
-    ldp q20, q21, [SP], #16
-    ldp q22, q23, [SP], #16
-    ldp q24, q25, [SP], #16
-    ldp q26, q27, [SP], #16
-    ldp q28, q29, [SP], #16
-    ldp q30, q31, [SP], #16
+
+    ldp q0, q1, [SP], #32
+    ldp q2, q3, [SP], #32
+    ldp q4, q5, [SP], #32
+    ldp q6, q7, [SP], #32
+    ldp q8, q9, [SP], #32
+    ldp q10, q11, [SP], #32
+    ldp q12, q13, [SP], #32
+    ldp q14, q15, [SP], #32
+    ldp q16, q17, [SP], #32
+    ldp q18, q19, [SP], #32
+    ldp q20, q21, [SP], #32
+    ldp q22, q23, [SP], #32
+    ldp q24, q25, [SP], #32
+    ldp q26, q27, [SP], #32
+    ldp q28, q29, [SP], #32
+    ldp q30, q31, [SP], #32
 
     ldp x0, x1, [SP], #16
     ldp x2, x3, [SP], #16
@@ -89,6 +90,7 @@ context_restore:
     ldp x24, x25, [SP], #16
     ldp x26, x27, [SP], #16
 
+    ldp lr, xzr, [SP], #16
     ret
 
 .macro HANDLER source, kind
