@@ -66,7 +66,33 @@ impl GlobalScheduler {
     /// Starts executing processes in user space using timer interrupt based
     /// preemptive scheduling. This method should not return under normal conditions.
     pub fn start(&self) -> ! {
-        unimplemented!("GlobalScheduler::start()")
+        // setting up the trap frame
+        let elr = 0; //TODO: change this
+        let spsr = 0;
+
+        let lock = self.0.lock();
+        let scheduler = lock.as_ref().unwrap();
+        let sp = scheduler.processes[0].stack.top().as_u64();
+        let tpidr = 0;
+        let q_registers = [0i128; 32];
+        let x_registers = [0i64; 31];
+        let xzr = 0;
+        let trap_frame = TrapFrame::new(elr, spsr, sp, tpidr, q_registers, x_registers, xzr);
+
+        extern "C" {
+            fn context_restore();
+        }
+        let addr = &trap_frame as *const _;
+        unsafe {
+            aarch64::SP.set(addr as usize);
+            context_restore();
+            //setting stack pointer to initial value
+            aarch64::SP.set(crate::init::_start as *const () as usize);
+            //TODO: clear registers
+            eret();
+        }
+
+        loop {}
     }
 
     /// Initializes the scheduler and add userspace processes to the Scheduler
@@ -143,6 +169,11 @@ impl Scheduler {
     fn kill(&mut self, tf: &mut TrapFrame) -> Option<Id> {
         unimplemented!("Scheduler::kill()")
     }
+}
+
+pub extern "C" fn start_shell() {
+    use crate::shell::shell;
+    shell("start shell: ");
 }
 
 pub extern "C" fn  test_user_process() -> ! {

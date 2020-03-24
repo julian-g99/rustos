@@ -1,0 +1,1 @@
+We can just allocate no memory at the start and requests more pages as needed.
