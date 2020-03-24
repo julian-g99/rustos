@@ -21,7 +21,7 @@ fn set_bit(val: u64, bit: u8) -> u64 {
 }
 
 fn clear_bit(val: u64, bit: u8) -> u64 {
-    let mask = !(mask << bit);
+    let mask = !(1 << bit);
     val & mask
 }
 
@@ -56,8 +56,8 @@ impl TrapFrame {
         self.spsr = clear_bit(self.spsr, 3);
     }
 
-    pub fn set_lr(&mut self, val: u64) {
-        self.lr = val;
+    pub fn set_lr(&mut self, val: i64) {
+        self.x_registers[30] = val;
     }
 }
 
