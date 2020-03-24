@@ -71,13 +71,18 @@ impl GlobalScheduler {
         let spsr = 0;
 
         let lock = self.0.lock();
-        let scheduler = lock.as_ref().unwrap();
-        let sp = scheduler.processes[0].stack.top().as_u64();
-        let tpidr = 0;
-        let q_registers = [0i128; 32];
-        let x_registers = [0i64; 31];
-        let xzr = 0;
-        let trap_frame = TrapFrame::new(elr, spsr, sp, tpidr, q_registers, x_registers, xzr);
+        //let scheduler = lock.as_ref().unwrap();
+        //let sp = scheduler.processes[0].stack.top().as_u64();
+
+        let process = Process::new().expect("not enough memory to start process");
+        let mut trap_frame = *process.context;
+        trap_frame.set_sp(process.get_stack_top());
+        // executing in EL0 in 64 execution state
+        trap_frame.set_aarch64();
+        trap_frame.set_el0();
+        // IRQ interrupts unmasked for current EL1
+        trap_frame.mask_irq();
+        trap_frame.set_lr(start_shell as *const () as u64);
 
         extern "C" {
             fn context_restore();
@@ -89,6 +94,7 @@ impl GlobalScheduler {
             //setting stack pointer to initial value
             aarch64::SP.set(crate::init::_start as *const () as usize);
             //TODO: clear registers
+            asm!("mov lr, $0"::::"volatile");
             eret();
         }
 
