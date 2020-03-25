@@ -4,6 +4,8 @@ use core::fmt;
 
 use aarch64::*;
 
+use crate::console::kprintln;
+
 use crate::mutex::Mutex;
 use crate::param::{PAGE_MASK, PAGE_SIZE, TICK, USER_IMG_BASE};
 use crate::process::{Id, Process, State};
@@ -67,7 +69,8 @@ impl GlobalScheduler {
     /// preemptive scheduling. This method should not return under normal conditions.
     pub fn start(&self) -> ! {
         // setting up the trap frame
-        let elr = 0; //TODO: change this
+        let elr = start_shell as *const() as u64; //TODO: change this
+        kprintln!("calculated elr is : {}", elr);
         let spsr = 0;
 
         let lock = self.0.lock();
@@ -76,27 +79,41 @@ impl GlobalScheduler {
 
         let process = Process::new().expect("not enough memory to start process");
         let mut trap_frame = *process.context;
+        trap_frame.set_elr(elr);
         trap_frame.set_sp(process.stack.top().as_u64());
         // executing in EL0 in 64 execution state
         trap_frame.set_aarch64();
         trap_frame.set_el0();
         // IRQ interrupts unmasked for current EL1
         trap_frame.unmask_irq();
-        trap_frame.set_lr(start_shell as *const () as i64);
+        //trap_frame.set_lr(start_shell as *const () as i64);
 
         extern "C" {
             fn context_restore();
         }
-        let addr = &trap_frame as *const _;
+        let addr = &trap_frame as *const TrapFrame;
+        //let addr = Box::into_raw(process.context);
         unsafe {
             aarch64::SP.set(addr as usize);
+            //let temp: u64;
+            //asm!("mov $0, sp":"=r"(temp):::"volatile");
+            //kprintln!("sp should be: {:?}", addr);
+            //kprintln!("sp value: {:x}", temp);
             context_restore();
+            //asm!("bl context_restore"::::"volatile");
+            let temp: usize;
+            asm!("mrs $0, elr_el1":"=r"(temp):::"volatile");
+            //kprintln!("elr is: {}", temp);
+            //kprintln!("elr currently is: {}", aarch64::ELR_EL1.get());
+            //kprintln!("spsr currently is: {}", aarch64::SPSR_EL1.get());
             //setting stack pointer to initial value
             aarch64::SP.set(crate::init::_start as *const () as usize);
             //TODO: clear registers
             asm!("mov lr, #0"::::"volatile");
+            kprintln!("before eret");
             eret();
         }
+        kprintln!("after eret");
 
         loop {}
     }
