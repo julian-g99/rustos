@@ -69,46 +69,32 @@ impl GlobalScheduler {
     /// preemptive scheduling. This method should not return under normal conditions.
     pub fn start(&self) -> ! {
         // setting up the trap frame
-        let elr = start_shell as *const() as u64; //TODO: change this
-        kprintln!("calculated elr is : {}", elr);
-        let spsr = 0;
-
-        let lock = self.0.lock();
-        //let scheduler = lock.as_ref().unwrap();
-        //let sp = scheduler.processes[0].stack.top().as_u64();
-
-        let process = Process::new().expect("not enough memory to start process");
-        let mut trap_frame = *process.context;
+        let mut process = Process::new().expect("not enough memory to start process");
+        let elr = start_shell as *mut u8 as u64;
+        let mut trap_frame = process.context;
         trap_frame.set_elr(elr);
         trap_frame.set_sp(process.stack.top().as_u64());
-        // executing in EL0 in 64 execution state
         trap_frame.set_aarch64();
         trap_frame.set_el0();
-        // IRQ interrupts unmasked for current EL1
         trap_frame.unmask_irq();
-        //trap_frame.set_lr(start_shell as *const () as i64);
 
         extern "C" {
             fn context_restore();
         }
-        let addr = &trap_frame as *const TrapFrame;
-        //let addr = Box::into_raw(process.context);
         unsafe {
             //aarch64::SP.set(addr as usize);
-            asm!("mov sp, $0"::"r"(addr)::"volatile");
-
+            asm!("mov sp, $0"::"r"(trap_frame)::"volatile");
             context_restore();
+            //asm!("bl context_restore"::::"volatile");
             let temp: usize;
             asm!("mrs $0, elr_el1":"=r"(temp):::"volatile");
-            //aarch64::SP.set(crate::init::_start as *const () as usize);
-            asm!("adr $0, _start,
-                  mov sp, $0,"::::"volatile");
+            asm!("adr x0, _start
+                  mov sp, x0":::"x0":"volatile");
             //TODO: clear registers
             asm!("mov lr, #0"::::"volatile");
             kprintln!("before eret");
             eret();
         }
-        kprintln!("after eret");
 
         loop {}
     }
@@ -190,8 +176,13 @@ impl Scheduler {
 }
 
 pub extern "C" fn start_shell() {
-    use crate::shell::shell;
-    shell("start shell: ");
+    //crate::shell::shell("> ");
+    use crate::shell;
+    unsafe { asm!("brk 1" :::: "volatile"); }
+    unsafe { asm!("brk 2" :::: "volatile"); }
+    shell::shell("user0> ");
+    unsafe { asm!("brk 3" :::: "volatile"); }
+    loop { shell::shell("user1> "); }
 }
 
 pub extern "C" fn  test_user_process() -> ! {
