@@ -94,20 +94,15 @@ impl GlobalScheduler {
         let addr = &trap_frame as *const TrapFrame;
         //let addr = Box::into_raw(process.context);
         unsafe {
-            aarch64::SP.set(addr as usize);
-            //let temp: u64;
-            //asm!("mov $0, sp":"=r"(temp):::"volatile");
-            //kprintln!("sp should be: {:?}", addr);
-            //kprintln!("sp value: {:x}", temp);
+            //aarch64::SP.set(addr as usize);
+            asm!("mov sp, $0"::"r"(addr)::"volatile");
+
             context_restore();
-            //asm!("bl context_restore"::::"volatile");
             let temp: usize;
             asm!("mrs $0, elr_el1":"=r"(temp):::"volatile");
-            //kprintln!("elr is: {}", temp);
-            //kprintln!("elr currently is: {}", aarch64::ELR_EL1.get());
-            //kprintln!("spsr currently is: {}", aarch64::SPSR_EL1.get());
-            //setting stack pointer to initial value
-            aarch64::SP.set(crate::init::_start as *const () as usize);
+            //aarch64::SP.set(crate::init::_start as *const () as usize);
+            asm!("adr $0, _start,
+                  mov sp, $0,"::::"volatile");
             //TODO: clear registers
             asm!("mov lr, #0"::::"volatile");
             kprintln!("before eret");
