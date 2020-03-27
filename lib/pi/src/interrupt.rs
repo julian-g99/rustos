@@ -1,7 +1,7 @@
 use crate::common::IO_BASE;
 
 use volatile::prelude::*;
-use volatile::{Volatile, ReadVolatile};
+use volatile::{ReadVolatile, Reserved, Volatile};
 
 const INT_BASE: usize = IO_BASE + 0xB000 + 0x200;
 
@@ -76,7 +76,16 @@ impl From<usize> for Interrupt {
 #[repr(C)]
 #[allow(non_snake_case)]
 struct Registers {
-    // FIXME: Fill me in.
+    IRQ_BASIC_PENDING: Reserved<u32>,
+    IRQ_PENDING_1: ReadVolatile<u32>,
+    IRQ_PENDING_2: ReadVolatile<u32>,
+    FIQ_CONTROL: Reserved<u32>,
+    ENABLE_IRQS_1: Volatile<u32>,
+    ENABLE_IRQS_2: Volatile<u32>,
+    ENABLE_BASIC_IRQS: Reserved<u32>,
+    DISABLE_IRQS_1: Volatile<u32>,
+    DISABLE_IRQS_2: Volatile<u32>,
+    DISABLE_BASIC_IRQS: Reserved<u32>,
 }
 
 /// An interrupt controller. Used to enable and disable interrupts as well as to
@@ -95,16 +104,31 @@ impl Controller {
 
     /// Enables the interrupt `int`.
     pub fn enable(&mut self, int: Interrupt) {
-        unimplemented!()
+        let val = int as u32;
+        if val < 32 {
+            self.registers.ENABLE_IRQS_1.or_mask(1 << val)
+        } else {
+            self.registers.ENABLE_IRQS_2.or_mask(1 << (val - 32))
+        }
     }
 
     /// Disables the interrupt `int`.
     pub fn disable(&mut self, int: Interrupt) {
-        unimplemented!()
+        let val = int as u32;
+        if val < 32 {
+            self.registers.DISABLE_IRQS_1.or_mask(1 << val)
+        } else {
+            self.registers.DISABLE_IRQS_2.or_mask(1 << (val - 32))
+        }
     }
 
     /// Returns `true` if `int` is pending. Otherwise, returns `false`.
-    pub fn is_pending(&self, int: Interrupt) -> bool {
-        unimplemented!()
+    pub fn is_pening(&self, int: Interrupt) -> bool {
+        let val = int as u32;
+        if val < 32 {
+            self.registers.IRQ_PENDING_1.has_mask(1 << val)
+        } else {
+            self.registers.IRQ_PENDING_2.has_mask(1 << (val - 32))
+        }
     }
 }

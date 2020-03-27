@@ -1,4 +1,5 @@
 use crate::common::IO_BASE;
+use crate::interrupt::{Controller, Interrupt};
 use core::time::Duration;
 
 use volatile::prelude::*;
@@ -40,7 +41,10 @@ impl Timer {
     /// interrupts for timer 1 are enabled and IRQs are unmasked, then a timer
     /// interrupt will be issued in `t` duration.
     pub fn tick_in(&mut self, t: Duration) {
-        unimplemented!()
+        let mut controller = Controller::new();
+        controller.enable(Interrupt::Timer1);
+        self.registers.CS.or_mask(0b010);
+        self.registers.COMPARE[1].write(t.as_micros() as u32);
     }
 }
 
@@ -64,5 +68,6 @@ pub fn spin_sleep(t: Duration) {
 /// interrupts for timer 1 are enabled and IRQs are unmasked, then a timer
 /// interrupt will be issued in `t` duration.
 pub fn tick_in(t: Duration) {
-    unimplemented!()
+    let mut timer = Timer::new();
+    timer.tick_in(t);
 }

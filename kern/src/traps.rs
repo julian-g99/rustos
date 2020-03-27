@@ -8,6 +8,7 @@ pub use self::frame::TrapFrame;
 use pi::interrupt::{Controller, Interrupt};
 
 use crate::console::kprintln;
+use crate::IRQ;
 use crate::shell::shell;
 
 use aarch64::regs::ELR_EL2;
@@ -47,16 +48,26 @@ pub struct Info {
 #[no_mangle]
 pub extern "C" fn handle_exception(info: Info, esr: u32, tf: &mut TrapFrame) {
     //unimplemented!("handle_exception");
-    let syndrome = Syndrome::from(esr);
-    match syndrome {
-        Syndrome::Brk(val) => {
-            shell("oh no something is wrong: ");
-            let prev_elr = tf.get_elr();
-            tf.set_elr(prev_elr + 4);
-        },
-        _ => {
-            loop {
-                aarch64::nop();
+    if info.kind == Kind::Synchronous {
+        let syndrome = Syndrome::from(esr);
+        match syndrome {
+            Syndrome::Brk(val) => {
+                shell("oh no something is wrong: ");
+                let prev_elr = tf.get_elr();
+                tf.set_elr(prev_elr + 4);
+            },
+            _ => {
+                loop {
+                    aarch64::nop();
+                }
+            }
+        }
+    } else if info.kind == Kind::Irq {
+        let iter = Interrupt::iter();
+        let controller = Controller::new();
+        for i in iter {
+            if controller.is_pening(*i) {
+                IRQ.invoke(*i, tf);
             }
         }
     }

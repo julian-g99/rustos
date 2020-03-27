@@ -1,0 +1,3 @@
+One scenario where we might want to do this is if we have multiple timers which are at different rates and maybe priority, in which case we would want the high priority timer to be able to interrupt the handler of the lower priority handler.
+
+We can unmask interrupts immediately after we save the context, and in particular the value of ELR. If this doesn't happen before interrupts are unmasked, we would be unable to return to the site where the first interrupt occurred (it's possible that due to interrupt handling we won't want to do that anyway, but it should be possible to do so if necessary).
