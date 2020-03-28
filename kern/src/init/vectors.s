@@ -114,14 +114,17 @@ vectors:
     HANDLER 0, 1
     HANDLER 0, 2
     HANDLER 0, 3
+    
     HANDLER 1, 0
     HANDLER 1, 1
     HANDLER 1, 2
     HANDLER 1, 3
+
     HANDLER 2, 0
     HANDLER 2, 1
     HANDLER 2, 2
     HANDLER 2, 3
+
     HANDLER 3, 0
     HANDLER 3, 1
     HANDLER 3, 2

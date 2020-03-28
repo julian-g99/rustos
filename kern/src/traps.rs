@@ -48,8 +48,10 @@ pub struct Info {
 #[no_mangle]
 pub extern "C" fn handle_exception(info: Info, esr: u32, tf: &mut TrapFrame) {
     //unimplemented!("handle_exception");
+    kprintln!("info: {:?}", info);
     if info.kind == Kind::Synchronous {
         let syndrome = Syndrome::from(esr);
+        kprintln!("syndrom: {:?}", syndrome);
         match syndrome {
             Syndrome::Brk(val) => {
                 shell("oh no something is wrong: ");
@@ -57,16 +59,18 @@ pub extern "C" fn handle_exception(info: Info, esr: u32, tf: &mut TrapFrame) {
                 tf.set_elr(prev_elr + 4);
             },
             _ => {
-                loop {
-                    aarch64::nop();
-                }
+                let prev_elr = tf.get_elr();
+                tf.set_elr(prev_elr + 4);
+                //loop {
+                    //aarch64::nop();
+                //}
             }
         }
     } else if info.kind == Kind::Irq {
         let iter = Interrupt::iter();
         let controller = Controller::new();
         for i in iter {
-            if controller.is_pening(*i) {
+            if controller.is_pending(*i) {
                 IRQ.invoke(*i, tf);
             }
         }

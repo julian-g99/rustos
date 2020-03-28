@@ -6,7 +6,7 @@ use aarch64::*;
 use core::time::Duration;
 use pi::timer::tick_in;
 use crate::IRQ;
-use pi::interrupt::Interrupt;
+use pi::interrupt::{Interrupt, Controller};
 
 use crate::console::kprintln;
 
@@ -72,16 +72,6 @@ impl GlobalScheduler {
     /// Starts executing processes in user space using timer interrupt based
     /// preemptive scheduling. This method should not return under normal conditions.
     pub fn start(&self) -> ! {
-        // enabling interrupt and setting the tick
-        tick_in(TICK);
-
-        let handler = |tf: &mut TrapFrame| {
-            tick_in(TICK);
-            kprintln!("Timer ticks");
-        };
-        IRQ.register(Interrupt::Timer1, Box::new(handler));
-
-
         // setting up the trap frame
         let mut process = Process::new().expect("not enough memory to start process");
         let elr = start_shell as *mut u8 as u64;
@@ -92,6 +82,7 @@ impl GlobalScheduler {
         trap_frame.set_el0();
         trap_frame.unmask_irq();
 
+
         extern "C" {
             fn context_restore();
         }
@@ -99,14 +90,20 @@ impl GlobalScheduler {
             //aarch64::SP.set(addr as usize);
             asm!("mov sp, $0"::"r"(trap_frame)::"volatile");
             context_restore();
-            //asm!("bl context_restore"::::"volatile");
-            let temp: usize;
-            asm!("mrs $0, elr_el1":"=r"(temp):::"volatile");
             asm!("adr x0, _start
                   mov sp, x0":::"x0":"volatile");
             //TODO: clear registers
             asm!("mov lr, #0"::::"volatile");
             kprintln!("before eret");
+            // enabling interrupt and setting the tick
+            let mut controller = Controller::new();
+            controller.enable(Interrupt::Timer1);
+            tick_in(TICK);
+            let handler = |tf: &mut TrapFrame| {
+                tick_in(TICK);
+                kprintln!("Timer ticks");
+            };
+            IRQ.register(Interrupt::Timer1, Box::new(handler));
             eret();
         }
 
@@ -192,11 +189,11 @@ impl Scheduler {
 pub extern "C" fn start_shell() {
     //crate::shell::shell("> ");
     use crate::shell;
-    unsafe { asm!("brk 1" :::: "volatile"); }
-    unsafe { asm!("brk 2" :::: "volatile"); }
+    //unsafe { asm!("brk 1" :::: "volatile"); }
+    //unsafe { asm!("brk 2" :::: "volatile"); }
     shell::shell("user0> ");
-    unsafe { asm!("brk 3" :::: "volatile"); }
-    loop { shell::shell("user1> "); }
+    //unsafe { asm!("brk 3" :::: "volatile"); }
+    //loop { shell::shell("user1> "); }
 }
 
 pub extern "C" fn  test_user_process() -> ! {

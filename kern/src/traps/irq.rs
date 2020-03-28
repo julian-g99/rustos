@@ -3,6 +3,7 @@ use pi::interrupt::Interrupt;
 
 use crate::mutex::Mutex;
 use crate::traps::TrapFrame;
+use crate::console::kprintln;
 
 pub type IrqHandler = Box<dyn FnMut(&mut TrapFrame) + Send>;
 pub type IrqHandlers = [Option<IrqHandler>; Interrupt::MAX];
@@ -25,7 +26,7 @@ impl Irq {
         match self.0.lock().iter_mut().next() {
             None => {},
             Some(arr) => {
-                (*arr)[index] = Some(handler)
+                (*arr)[index] = Some(handler);
             }
         }
     }

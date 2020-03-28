@@ -123,7 +123,7 @@ impl Controller {
     }
 
     /// Returns `true` if `int` is pending. Otherwise, returns `false`.
-    pub fn is_pening(&self, int: Interrupt) -> bool {
+    pub fn is_pending(&self, int: Interrupt) -> bool {
         let val = int as u32;
         if val < 32 {
             self.registers.IRQ_PENDING_1.has_mask(1 << val)
