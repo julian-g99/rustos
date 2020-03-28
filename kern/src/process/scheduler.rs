@@ -72,6 +72,15 @@ impl GlobalScheduler {
     /// Starts executing processes in user space using timer interrupt based
     /// preemptive scheduling. This method should not return under normal conditions.
     pub fn start(&self) -> ! {
+        // enabling interrupt and setting the tick
+        let mut controller = Controller::new();
+        controller.enable(Interrupt::Timer1);
+        tick_in(TICK);
+        let handler = |tf: &mut TrapFrame| {
+            tick_in(TICK);
+            kprintln!("Timer ticks");
+        };
+        IRQ.register(Interrupt::Timer1, Box::new(handler));
         // setting up the trap frame
         let mut process = Process::new().expect("not enough memory to start process");
         let elr = start_shell as *mut u8 as u64;
@@ -95,15 +104,6 @@ impl GlobalScheduler {
             //TODO: clear registers
             asm!("mov lr, #0"::::"volatile");
             kprintln!("before eret");
-            // enabling interrupt and setting the tick
-            let mut controller = Controller::new();
-            controller.enable(Interrupt::Timer1);
-            tick_in(TICK);
-            let handler = |tf: &mut TrapFrame| {
-                tick_in(TICK);
-                kprintln!("Timer ticks");
-            };
-            IRQ.register(Interrupt::Timer1, Box::new(handler));
             eret();
         }
 

@@ -23,11 +23,14 @@ impl Irq {
     /// The caller should assure that `initialize()` has been called before calling this function.
     pub fn register(&self, int: Interrupt, handler: IrqHandler) {
         let index = Interrupt::to_index(int);
-        match self.0.lock().iter_mut().next() {
-            None => {},
-            Some(arr) => {
-                (*arr)[index] = Some(handler);
-            }
+        //match self.0.lock().iter_mut().next() {
+            //None => {},
+            //Some(arr) => {
+                //(*arr)[index] = Some(handler);
+            //}
+        //}
+        if let Some(ref mut handlers) = *self.0.lock() {
+            handlers[i] = Some(handler);
         }
     }
 
@@ -35,14 +38,19 @@ impl Irq {
     /// The caller should assure that `initialize()` has been called before calling this function.
     pub fn invoke(&self, int: Interrupt, tf: &mut TrapFrame) {
         let index = Interrupt::to_index(int);
-        match *self.0.lock() {
-            Some(ref mut handlers) => {
-                match handlers[index] {
-                    Some(ref mut handler) => handler(tf),
-                    None => {}
-                }
-            },
-            None => {}
-        };
+        if let Some(ref mut handlers) = *self.0.lock() {
+            if let Some(ref mut handler) = handlers[i] {
+                handler(tf);
+            }
+        }
+        //match *self.0.lock() {
+            //Some(ref mut handlers) => {
+                //match handlers[index] {
+                    //Some(ref mut handler) => handler(tf),
+                    //None => {}
+                //}
+            //},
+            //None => {}
+        //};
     }
 }

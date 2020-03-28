@@ -43,8 +43,8 @@ impl Timer {
     pub fn tick_in(&mut self, t: Duration) {
         //let mut controller = Controller::new();
         //controller.enable(Interrupt::Timer1);
-        //self.registers.CS.or_mask(0b010);
-        self.registers.CS.and_mask(!0b010);
+        self.registers.CS.or_mask(0b010);
+        //self.registers.CS.and_mask(!0b010);
         self.registers.COMPARE[1].write(t.as_micros() as u32);
     }
 }
