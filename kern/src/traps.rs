@@ -49,24 +49,25 @@ pub struct Info {
 pub extern "C" fn handle_exception(info: Info, esr: u32, tf: &mut TrapFrame) {
     //unimplemented!("handle_exception");
     kprintln!("info: {:?}", info);
-    if info.kind == Kind::Synchronous {
-        let syndrome = Syndrome::from(esr);
-        kprintln!("syndrom: {:?}", syndrome);
-        match syndrome {
-            Syndrome::Brk(val) => {
-                shell("oh no something is wrong: ");
-                let prev_elr = tf.get_elr();
-                tf.set_elr(prev_elr + 4);
-            },
-            _ => {
-                let prev_elr = tf.get_elr();
-                tf.set_elr(prev_elr + 4);
-                //loop {
-                    //aarch64::nop();
-                //}
-            }
-        }
-    } else if info.kind == Kind::Irq {
+    //if info.kind == Kind::Synchronous {
+        //let syndrome = Syndrome::from(esr);
+        //kprintln!("syndrom: {:?}", syndrome);
+        //match syndrome {
+            //Syndrome::Brk(val) => {
+                //shell("oh no something is wrong: ");
+                //let prev_elr = tf.get_elr();
+                //tf.set_elr(prev_elr + 4);
+            //},
+            //_ => {
+                //let prev_elr = tf.get_elr();
+                //tf.set_elr(prev_elr + 4);
+                ////loop {
+                    ////aarch64::nop();
+                ////}
+            //}
+        //}
+    //} else if info.kind == Kind::Irq {
+    if info.kind == Kind::Irq {
         let iter = Interrupt::iter();
         let controller = Controller::new();
         for i in iter {
@@ -75,4 +76,6 @@ pub extern "C" fn handle_exception(info: Info, esr: u32, tf: &mut TrapFrame) {
             }
         }
     }
+    let prev_elr = tf.get_elr();
+    tf.set_elr(prev_elr + 4);
 }

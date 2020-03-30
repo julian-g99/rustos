@@ -30,7 +30,7 @@ impl Irq {
             //}
         //}
         if let Some(ref mut handlers) = *self.0.lock() {
-            handlers[i] = Some(handler);
+            handlers[index] = Some(handler);
         }
     }
 
@@ -39,7 +39,7 @@ impl Irq {
     pub fn invoke(&self, int: Interrupt, tf: &mut TrapFrame) {
         let index = Interrupt::to_index(int);
         if let Some(ref mut handlers) = *self.0.lock() {
-            if let Some(ref mut handler) = handlers[i] {
+            if let Some(ref mut handler) = handlers[index] {
                 handler(tf);
             }
         }

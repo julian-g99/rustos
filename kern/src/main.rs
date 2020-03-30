@@ -74,7 +74,7 @@ fn kmain() -> ! {
         SCHEDULER.start();
     }
 
-    loop {
-        shell::shell("> "); //this way it never returns
-    }
+    //loop {
+        //shell::shell("> "); //this way it never returns
+    //}
 }
