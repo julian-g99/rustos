@@ -57,14 +57,7 @@ pub static IRQ: Irq = Irq::uninitialized();
 
 fn kmain() -> ! {
     // FIXME: Start the shell.
-    use fat32::traits::FileSystem as FsTrait;
-    use fat32::traits::Dir as DirTrait;
-    use fat32::vfat::{Dir, Entry};
-    use core::iter::Iterator;
-    use core::iter;
-    use shim::path::Path;
-    let duration = Duration::from_millis(1000);
-    spin_sleep(duration);
+    spin_sleep(Duration::from_millis(1000));
 
     //NOTE: this is code from the lab3 skeleton
     unsafe {

@@ -76,34 +76,29 @@ impl GlobalScheduler {
         let mut controller = Controller::new();
         controller.enable(Interrupt::Timer1);
         tick_in(TICK);
-        let handler = Box::new(|tf: &mut TrapFrame| {
+        //let handler = Box::new(|_| { //doesn't use the tf anyway
+            //tick_in(TICK);
+            //kprintln!("Timer ticks");
+        //});
+        IRQ.register(Interrupt::Timer1, Box::new(|_| {
             tick_in(TICK);
             kprintln!("Timer ticks");
-        });
-        IRQ.register(Interrupt::Timer1, handler);
+        }));
         // setting up the trap frame
         let mut process = Process::new().expect("not enough memory to start process");
-        let elr = start_shell as *mut u8 as u64;
-        let mut trap_frame = process.context;
-        trap_frame.set_elr(elr);
-        trap_frame.set_sp(process.stack.top().as_u64());
-        trap_frame.set_aarch64();
-        trap_frame.set_el0();
-        trap_frame.unmask_irq();
+        process.context.set_elr(start_shell as u64);
+        process.context.set_sp(process.stack.top().as_u64());
+        process.context.set_aarch64();
+        process.context.set_el0();
+        process.context.unmask_irq();
 
 
-        let tf = trap_frame.clone();
-        extern "C" {
-            fn context_restore();
-        }
+        let tf = process.context.clone();
         unsafe {
-            //aarch64::SP.set(addr as usize);
             asm!("mov sp, $0
                   bl context_restore"::"r"(tf)::"volatile");
-            //context_restore();
             asm!("adr x0, _start
                   mov sp, x0":::"x0":"volatile");
-            //TODO: clear registers
             asm!("mov lr, xzr
                   eret"::::"volatile");
             //eret();
