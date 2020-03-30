@@ -88,9 +88,9 @@ impl GlobalScheduler {
         let mut process = Process::new().expect("not enough memory to start process");
         process.context.set_elr(start_shell as u64);
         process.context.set_sp(process.stack.top().as_u64());
-        process.context.set_aarch64();
-        process.context.set_el0();
-        process.context.unmask_irq();
+        //process.context.set_aarch64();
+        //process.context.set_el0();
+        //process.context.unmask_irq();
 
 
         let tf = process.context.clone();
@@ -189,6 +189,7 @@ pub extern "C" fn start_shell() {
     //unsafe { asm!("brk 1" :::: "volatile"); }
     //unsafe { asm!("brk 2" :::: "volatile"); }
     shell::shell("user0> ");
+    //aarch64::nop();
     //unsafe { asm!("brk 3" :::: "volatile"); }
     //loop { shell::shell("user1> "); }
 }

@@ -41,11 +41,11 @@ impl Timer {
     /// interrupts for timer 1 are enabled and IRQs are unmasked, then a timer
     /// interrupt will be issued in `t` duration.
     pub fn tick_in(&mut self, t: Duration) {
-        //let mut controller = Controller::new();
-        //controller.enable(Interrupt::Timer1);
-        self.registers.CS.or_mask(0b010);
-        //self.registers.CS.and_mask(!0b010);
-        self.registers.COMPARE[1].write(t.as_micros() as u32);
+        //panic!("duration is: {:?}", t);
+        self.registers.CS.or_mask(1 << 1);
+        //self.registers.CS.and_mask(!(1 << 1));
+        let new_time = self.registers.CLO.read().wrapping_add(t.as_micros() as u32);
+        self.registers.COMPARE[1].write(new_time);
     }
 }
 
@@ -63,6 +63,11 @@ pub fn spin_sleep(t: Duration) {
             break;
         }
     }
+}
+
+pub fn enable_timer() {
+    let mut controller = Controller::new();
+    controller.enable(Interrupt::Timer1);
 }
 
 /// Sets up a match in timer 1 to occur `t` duration from now. If
