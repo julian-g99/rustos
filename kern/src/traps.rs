@@ -48,7 +48,6 @@ pub struct Info {
 #[no_mangle]
 pub extern "C" fn handle_exception(info: Info, esr: u32, tf: &mut TrapFrame) {
     //unimplemented!("handle_exception");
-    kprintln!("info: {:?}", info);
     //if info.kind == Kind::Synchronous {
         //let syndrome = Syndrome::from(esr);
         //kprintln!("syndrom: {:?}", syndrome);

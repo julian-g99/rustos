@@ -59,5 +59,13 @@ impl TrapFrame {
     pub fn set_lr(&mut self, val: i64) {
         self.x_registers[30] = val;
     }
+
+    pub fn set_tpidr(&mut self, val: u64) {
+        self.tpidr = val;
+    }
+
+    pub fn get_tpidr(&mut self) -> u64 {
+        self.tpidr
+    }
 }
 
