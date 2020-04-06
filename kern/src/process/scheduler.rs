@@ -109,6 +109,7 @@ impl GlobalScheduler {
         process4.context.set_aarch64();
         process4.context.set_el0();
         process4.context.unmask_irq();
+
         self.add(process1);
         self.add(process2);
         self.add(process3);
@@ -124,6 +125,7 @@ impl GlobalScheduler {
                   adr x0, _start
                   mov sp, x0
 
+                  mov lr, xzr
                   eret"
                   :
                   :"r"(tf)
@@ -184,6 +186,7 @@ impl Scheduler {
     fn add(&mut self, mut process: Process) -> Option<Id> {
         if self.last_id.is_none() {
             self.last_id = Some(0);
+            self.processes.push_back(process);
             return self.last_id;
         }
         let id = match self.last_id.unwrap().checked_add(1) {
@@ -193,6 +196,7 @@ impl Scheduler {
 
         process.context.set_tpidr(id);
         self.processes.push_back(process);
+        kprintln!("length: {}", self.processes.len());
         Some(id)
     }
 
@@ -233,6 +237,7 @@ impl Scheduler {
             if curr.is_ready() {
                 let id = curr.context.get_tpidr();
                 *tf = *curr.context;
+                curr.state = State::Running;
                 self.processes.push_front(curr);
                 return Some(id);
             } else {
@@ -263,14 +268,20 @@ pub extern "C" fn start_shell1() {
     use crate::shell;
     shell::shell("user1> ");
 }
+
+
 pub extern "C" fn start_shell2() {
     use crate::shell;
     shell::shell("user2> ");
 }
+
+
 pub extern "C" fn start_shell3() {
     use crate::shell;
     shell::shell("user3> ");
 }
+
+
 pub extern "C" fn start_shell4() {
     use crate::shell;
     shell::shell("user4> ");
