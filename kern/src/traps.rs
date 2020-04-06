@@ -74,7 +74,7 @@ pub extern "C" fn handle_exception(info: Info, esr: u32, tf: &mut TrapFrame) {
                 IRQ.invoke(*i, tf);
             }
         }
+        //let prev_elr = tf.get_elr();
+        //tf.set_elr(prev_elr + 4);
     }
-    let prev_elr = tf.get_elr();
-    tf.set_elr(prev_elr + 4);
 }
