@@ -77,7 +77,6 @@ impl GlobalScheduler {
         controller.enable(Interrupt::Timer1);
         tick_in(TICK);
         IRQ.register(Interrupt::Timer1, Box::new(|frame| {
-            kprintln!("ticking");
             tick_in(TICK);
             SCHEDULER.switch(State::Ready, frame);
         }));
@@ -266,6 +265,9 @@ impl Scheduler {
 
 pub extern "C" fn start_shell1() {
     use crate::shell;
+    use kernel_api::syscall::sleep;
+    let res = sleep(Duration::from_millis(50));
+    //kprintln!("milliseconds passed: {}", res.unwrap().as_millis());
     shell::shell("user1> ");
 }
 

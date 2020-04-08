@@ -3,16 +3,16 @@ use core::fmt;
 #[repr(C)]
 #[derive(Default, Copy, Clone, Debug)]
 pub struct TrapFrame {
+    TTBR1: u64,
+    TTBR0: u64,
     elr: u64,
     spsr: u64,
     sp: u64,
     tpidr: u64,
 
-    q_registers: [i128; 32],
+    q_registers: [u128; 32],
 
-    x_registers: [i64; 31],
-
-    xzr: u64
+    x_registers: [u64; 31],
 }
 
 fn set_bit(val: u64, bit: u8) -> u64 {
@@ -26,11 +26,11 @@ fn clear_bit(val: u64, bit: u8) -> u64 {
 }
 
 impl TrapFrame {
-    pub fn new(elr: u64, spsr: u64, sp: u64, tpidr: u64,
-        q_registers: [i128; 32], x_registers: [i64; 31],
-        xzr: u64) -> Self {
-        TrapFrame{ elr, spsr, sp, tpidr, q_registers, x_registers, xzr }
-    }
+    //pub fn new(elr: u64, spsr: u64, sp: u64, tpidr: u64,
+        //q_registers: [u128; 32], x_registers: [u64; 31],
+        //xzr: u64) -> Self {
+        //TrapFrame{ elr, spsr, sp, tpidr, q_registers, x_registers, xzr }
+    //}
     pub fn get_elr(&self) -> u64 {
         self.elr
     }
@@ -56,7 +56,7 @@ impl TrapFrame {
         self.spsr = clear_bit(self.spsr, 3);
     }
 
-    pub fn set_lr(&mut self, val: i64) {
+    pub fn set_lr(&mut self, val: u64) {
         self.x_registers[30] = val;
     }
 
@@ -66,6 +66,14 @@ impl TrapFrame {
 
     pub fn get_tpidr(&mut self) -> u64 {
         self.tpidr
+    }
+
+    pub fn set_x_register(&mut self, index: usize, val: u64) {
+        self.x_registers[index] = val;
+    }
+
+    pub fn get_x_register(&self, index: usize) -> u64 {
+        self.x_registers[index]
     }
 }
 

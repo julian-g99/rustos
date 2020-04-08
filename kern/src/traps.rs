@@ -48,25 +48,33 @@ pub struct Info {
 #[no_mangle]
 pub extern "C" fn handle_exception(info: Info, esr: u32, tf: &mut TrapFrame) {
     //unimplemented!("handle_exception");
-    //if info.kind == Kind::Synchronous {
-        //let syndrome = Syndrome::from(esr);
+    if info.kind == Kind::Synchronous {
+        let syndrome = Syndrome::from(esr);
         //kprintln!("syndrom: {:?}", syndrome);
-        //match syndrome {
-            //Syndrome::Brk(val) => {
-                //shell("oh no something is wrong: ");
-                //let prev_elr = tf.get_elr();
-                //tf.set_elr(prev_elr + 4);
-            //},
-            //_ => {
-                //let prev_elr = tf.get_elr();
-                //tf.set_elr(prev_elr + 4);
-                ////loop {
-                    ////aarch64::nop();
-                ////}
-            //}
-        //}
-    //} else if info.kind == Kind::Irq {
-    if info.kind == Kind::Irq {
+        match syndrome {
+            Syndrome::Brk(val) => {
+                shell("oh no something is wrong: ");
+                let prev_elr = tf.get_elr();
+                tf.set_elr(prev_elr + 4);
+            },
+            Syndrome::Svc(n) => {
+                //kprintln!("hello it be me");
+                let mut temp: u64;
+                unsafe {asm!("mov $0, x0":"=r"(temp)::"x0":"volatile");}
+                kprintln!("temp: {}", temp);
+                handle_syscall(n, tf);
+                let prev_elr = tf.get_elr();
+                tf.set_elr(prev_elr + 4);
+            },
+            _ => {
+                let prev_elr = tf.get_elr();
+                tf.set_elr(prev_elr + 4);
+                //loop {
+                    //aarch64::nop();
+                //}
+            }
+        }
+    } else if info.kind == Kind::Irq {
         let iter = Interrupt::iter();
         let controller = Controller::new();
         for i in iter {

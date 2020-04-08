@@ -1,8 +1,9 @@
 use alloc::boxed::Box;
 use core::time::Duration;
+use pi::timer::current_time;
 
 use crate::console::CONSOLE;
-use crate::process::State;
+use crate::process::{State, Process};
 use crate::traps::TrapFrame;
 use crate::SCHEDULER;
 use kernel_api::*;
@@ -15,7 +16,22 @@ use kernel_api::*;
 /// parameter: the approximate true elapsed time from when `sleep` was called to
 /// when `sleep` returned.
 pub fn sys_sleep(ms: u32, tf: &mut TrapFrame) {
-    unimplemented!("sys_sleep()");
+    use crate::console::kprintln;
+    kprintln!("ms is: {}", ms);
+
+    let end_time = current_time() + Duration::from_millis(ms as u64);
+    let poll_fn = Box::new(move |proc: &mut Process| -> bool {
+        let curr_time = current_time();
+        if curr_time < end_time {
+            return false;
+        } else {
+            proc.context.set_x_register(7, 1);
+            proc.context.set_x_register(0, (curr_time - end_time).as_millis() as u64);
+            return true;
+        }
+
+    });
+    SCHEDULER.switch(State::Waiting(poll_fn), tf);
 }
 
 /// Returns current time.
@@ -58,5 +74,21 @@ pub fn sys_getpid(tf: &mut TrapFrame) {
 
 pub fn handle_syscall(num: u16, tf: &mut TrapFrame) {
     use crate::console::kprintln;
-    unimplemented!("handle_syscall()")
+    //unimplemented!("handle_syscall()")
+    match num {
+        1 => {
+            let micros = tf.get_x_register(0) as u32;
+            //unsafe {
+            //
+                //asm!("mov $0, x0"
+                    //:"=r"(micros)
+                    //:
+                    //:"x0"
+                    //:"volatile");
+            //}
+            //kprintln!("micros: {}", micros);
+            sys_sleep(micros, tf);
+        },
+        _ => {}
+    }
 }

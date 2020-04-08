@@ -40,6 +40,10 @@ context_save:
     mrs x20, ELR_EL1
     stp x20, x19, [SP, #-16]!
 
+    mrs x19, TTBR0_EL1
+    mrs x20, TTBR1_EL1
+    stp x20, x19, [SP, #-16]!
+
     mov x0, x29
     mrs x1, ESR_EL1
     mov x2, SP
@@ -50,6 +54,15 @@ context_save:
 
 .global context_restore
 context_restore:
+    ldp x20, x19, [SP], #16
+    msr TTBR0_EL1, x20
+    msr TTBR1_El1, x19
+
+    dsb ishst
+    tlbi vmalle1
+    dsb ish
+    isb
+
     ldp x20, x19, [SP], #16
     msr ELR_EL1, x20
     msr SPSR_EL1, x19

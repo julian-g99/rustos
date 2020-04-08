@@ -109,6 +109,7 @@ impl Process {
     pub fn is_ready(&mut self) -> bool {
         use core::mem::replace;
         use State::*;
+        use crate::console::kprintln;
         match self.state {
             Ready => true,
             Waiting(_) => {
@@ -121,6 +122,8 @@ impl Process {
                 if !wait_done {
                     self.state = old_state;
                 }
+
+                kprintln!("wait done is: {}", wait_done);
 
                 return wait_done;
             },
