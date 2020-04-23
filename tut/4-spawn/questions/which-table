@@ -1,0 +1,1 @@
+When all the upper bits of the virtual address are set to 0, the MMU will use the translation table pointed to by TTBR0 (kernel space). And conversely, when it's all set to 1, we will use TTBR1 (user space). Therefore, by starting the use space address from `0xffff_ffff_c000_0000`, we make sure that the upper bits will be set when we are in the user space.

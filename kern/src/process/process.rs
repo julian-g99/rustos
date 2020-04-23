@@ -21,7 +21,7 @@ pub struct Process {
     /// The memory allocation used for the process's stack.
     pub stack: Stack,
     /// The page table describing the Virtual Memory of the process
-    // pub vmap: Box<UserPageTable>,
+    pub vmap: Box<UserPageTable>,
     /// The scheduling state of the process.
     pub state: State,
 }
@@ -40,7 +40,8 @@ impl Process {
             None => return Err(OsError::NoMemory)
         };
         let state = State::Ready;
-        Ok(Process{ context, stack, state })
+        let vmap = Box::new(UserPageTable::new());
+        Ok(Process{ context, stack, state, vmap })
     }
 
     /// Load a program stored in the given path by calling `do_load()` method.

@@ -4,7 +4,8 @@ KERN := kernel
 TARGET := target/aarch64-unknown-none/release/${KERN}
 SDCARD ?= $(ROOT)/ext/fat32-imgs/mock1.fat32.img
 # SDCARD ?= $(ROOT)/user/fs.img
-OBJCPY := cargo objcopy -- --strip-all -O binary
+#OBJCPY := cargo objcopy -- --strip-all -O binary
+OBJCPY := $(HOME)/.cargo/bin/rust-objcopy --strip-all -O binary
 TTY_PATH := /dev/ttyUSB0
 QEMU_ARGS ?=
 

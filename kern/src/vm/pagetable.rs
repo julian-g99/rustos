@@ -18,6 +18,17 @@ use shim::const_assert_size;
 pub struct Page([u8; PAGE_SIZE]);
 const_assert_size!(Page, PAGE_SIZE);
 
+const OUTER_SHARE: u64 = 0x10;
+const INNER_SHARE: u64 = 0x11;
+
+const NORMAL_MEM: u64 = 0x000;
+const DEVICE_MEM: u64 = 0x001;
+
+const KERN_RW: u64 = 0x00;
+const USER_RW: u64 = 0x01;
+const KERN_RO: u64 = 0x10;
+const USER_RO: u64 = 0x11;
+
 impl Page {
     pub const SIZE: usize = PAGE_SIZE;
     pub const ALIGN: usize = PAGE_SIZE;
@@ -37,12 +48,18 @@ const_assert_size!(L2PageTable, PAGE_SIZE);
 impl L2PageTable {
     /// Returns a new `L2PageTable`
     fn new() -> L2PageTable {
-        unimplemented!("L2PageTable::new()")
+        let mut single_entry = RawL2Entry::new(0);
+        single_entry.set_bit(RawL2Entry::TYPE);
+        let entries = [single_entry; 8192]; //CHECK: what are the values really supposed to be?
+        L2PageTable {entries}
+        //unimplemented!("L2PageTable::new()")
     }
 
     /// Returns a `PhysicalAddr` of the pagetable.
     pub fn as_ptr(&self) -> PhysicalAddr {
-        unimplemented!("L2PageTable::as_ptr()")
+        //unimplemented!("L2PageTable::as_ptr()")
+        let val = self.entries[0].get();
+        PhysicalAddr::from(val)
     }
 }
 
@@ -52,18 +69,42 @@ pub struct L3Entry(RawL3Entry);
 impl L3Entry {
     /// Returns a new `L3Entry`.
     fn new() -> L3Entry {
-        unimplemented!("L3Entry::new()")
+        L3Entry(RawL3Entry::new(0))
     }
 
     /// Returns `true` if the L3Entry is valid and `false` otherwise.
     fn is_valid(&self) -> bool {
-        unimplemented!("L3Entry::is_valid()")
+        self.0.get_value(RawL3Entry::VALID) == 1
     }
 
     /// Extracts `ADDR` field of the L3Entry and returns as a `PhysicalAddr`
     /// if valid. Otherwise, return `None`.
     fn get_page_addr(&self) -> Option<PhysicalAddr> {
-        unimplemented!("LeEntry::get_page_add()")
+        //unimplemented!("LeEntry::get_page_add()")
+        if self.is_valid() {
+            let addr = self.0.get_value(RawL3Entry::ADDR);
+            Some(PhysicalAddr::from(addr))
+        } else {
+            None
+        }
+    }
+
+    fn set_addr(&mut self, addr: u64, perm: u64, share: u64, attr: u64) {
+        self.0.set_value(perm, RawL3Entry::AP);
+        self.0.set_value(addr, RawL3Entry::ADDR);
+        self.0.set_bit(RawL3Entry::VALID);
+        self.0.set_bit(RawL3Entry::TYPE);
+
+        self.0.set_value(share, RawL3Entry::SH);
+        self.0.set_value(attr, RawL3Entry::ATTR);
+    }
+
+    fn get_addr(&self) -> u64 {
+        self.0.get_value(RawL3Entry::ADDR)
+    }
+
+    fn set_invalid(&mut self) {
+        self.0.clear_bit(RawL3Entry::VALID);
     }
 }
 
@@ -77,12 +118,16 @@ const_assert_size!(L3PageTable, PAGE_SIZE);
 impl L3PageTable {
     /// Returns a new `L3PageTable`.
     fn new() -> L3PageTable {
-        unimplemented!("L3PageTable::new()")
+        //unimplemented!("L3PageTable::new()")
+        let entries = [L3Entry::new(); 8192];
+        L3PageTable{ entries }
     }
 
     /// Returns a `PhysicalAddr` of the pagetable.
     pub fn as_ptr(&self) -> PhysicalAddr {
-        unimplemented!("L3PageTable::as_ptr()")
+        //unimplemented!("L3PageTable::as_ptr()")
+        let val = self.entries[0].0.get();
+        PhysicalAddr::from(val)
     }
 }
 
@@ -97,7 +142,22 @@ impl PageTable {
     /// Returns a new `Box` containing `PageTable`.
     /// Entries in L2PageTable should be initialized properly before return.
     fn new(perm: u64) -> Box<PageTable> {
-        unimplemented!("PageTable::new()")
+        let mut page_table = Box::new(PageTable{
+            l2: L2PageTable::new(), l3: [L3PageTable::new(), L3PageTable::new()]
+        });
+
+        //use RawL2Entry::*;
+        for i in 0..2 {
+            let mut entry = page_table.l2.entries[i];
+            entry.set_value(page_table.l3[i].as_ptr().as_u64(), RawL2Entry::ADDR);
+            entry.set_value(INNER_SHARE, RawL2Entry::SH);
+            entry.set_value(perm, RawL2Entry::AP);
+            entry.set_value(NORMAL_MEM, RawL2Entry::ATTR);
+            entry.set_value(0x1, RawL2Entry::TYPE);
+            entry.set_bit(RawL2Entry::VALID);
+        }
+
+        page_table
     }
 
     /// Returns the (L2index, L3index) extracted from the given virtual address.
@@ -109,35 +169,72 @@ impl PageTable {
     /// Panics if the virtual address is not properly aligned to page size.
     /// Panics if extracted L2index exceeds the number of L3PageTable.
     fn locate(va: VirtualAddr) -> (usize, usize) {
-        unimplemented!("PageTable::localte()")
+        //unimplemented!("PageTable::localte()")
+        if !va.is_aligned(PAGE_SIZE) {
+            panic!("Virtual address is not aligned to page size");
+        }
+
+        let l2_index = va.l2_index();
+        let l3_index = va.l3_index();
+
+        if l2_index >= 2 {
+            panic!("L2 index is greater than or equal to 2");
+        }
+
+        (l2_index, l3_index)
     }
 
     /// Returns `true` if the L3entry indicated by the given virtual address is valid.
     /// Otherwise, `false` is returned.
     pub fn is_valid(&self, va: VirtualAddr) -> bool {
-        unimplemented!("PageTable::is_valid()")
+        let (l2_index, l3_index) = Self::locate(va);
+
+        let l3_table = &self.l3[l2_index];
+        
+        let entry = l3_table.entries[l3_index];
+        entry.is_valid()
     }
 
     /// Returns `true` if the L3entry indicated by the given virtual address is invalid.
     /// Otherwise, `true` is returned.
     pub fn is_invalid(&self, va: VirtualAddr) -> bool {
-        unimplemented!("PageTable::is_invalid()")
+        !self.is_valid(va)
     }
 
     /// Set the given RawL3Entry `entry` to the L3Entry indicated by the given virtual
     /// address.
     pub fn set_entry(&mut self, va: VirtualAddr, entry: RawL3Entry) -> &mut Self {
         unimplemented!("PageTable::set_entry()")
+        // what are we actually doing in this function?
+        //let (l2_index, l3_index) = Self::locate(va);
+
+        //let l3_table = &self.l3[l2_index];
+
+        //l3_table.entries[l3_index] = entry;
+
+        //return self
     }
 
     /// Returns a base address of the pagetable. The returned `PhysicalAddr` value
     /// will point the start address of the L2PageTable.
     pub fn get_baddr(&self) -> PhysicalAddr {
-        unimplemented!("PageTable::get_baddr()")
+        self.l2.as_ptr()
     }
 }
 
 // FIXME: Implement `IntoIterator` for `&PageTable`.
+impl<'a> IntoIterator for &'a PageTable {
+    type Item = &'a L3Entry;
+    //type IntoIter = core::slice::Iter<'a, L3Entry>;
+    type IntoIter = core::iter::Chain<core::slice::Iter<'a, L3Entry>, core::slice::Iter<'a, L3Entry>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        let first = self.l3[0].entries.iter();
+        let second = self.l3[1].entries.iter();
+
+        return first.chain(second);
+    }
+}
 
 pub struct KernPageTable(Box<PageTable>);
 
@@ -151,7 +248,24 @@ impl KernPageTable {
     /// as address[47:16]. Refer to the definition of `RawL3Entry` in `vmsa.rs` for
     /// more details.
     pub fn new() -> KernPageTable {
-        unimplemented!("KernPageTable::new()")
+        let page_table = PageTable::new(KERN_RW);
+        let (start, end) = allocator::memory_map().expect("memory map call returns none in KernPageTable::new()");
+
+        for i in start..end {
+            let addr = VirtualAddr::from(i);
+            let (l2_index, l3_index) = PageTable::locate(addr);
+            let mut l3_entry = page_table.l3[l2_index].entries[l3_index];
+            l3_entry.set_addr(i as u64, KERN_RW, INNER_SHARE, NORMAL_MEM);
+        }
+
+
+        for i in IO_BASE..IO_BASE_END {
+            let addr = VirtualAddr::from(i);
+            let (l2_index, l3_index) = PageTable::locate(addr);
+            let mut l3_entry = page_table.l3[l2_index].entries[l3_index];
+            l3_entry.set_addr(i as u64, KERN_RW, OUTER_SHARE, DEVICE_MEM);
+        }
+        KernPageTable(page_table)
     }
 }
 
@@ -167,7 +281,8 @@ impl UserPageTable {
     /// Returns a new `UserPageTable` containing a `PageTable` created with
     /// `USER_RW` permission.
     pub fn new() -> UserPageTable {
-        unimplemented!("UserPageTable::new()")
+        let page_table = PageTable::new(USER_RW);
+        UserPageTable(page_table)
     }
 
     /// Allocates a page and set an L3 entry translates given virtual address to the
@@ -181,7 +296,30 @@ impl UserPageTable {
     /// TODO. use Result<T> and make it failurable
     /// TODO. use perm properly
     pub fn alloc(&mut self, va: VirtualAddr, _perm: PagePerm) -> &mut [u8] {
-        unimplemented!("alloc()");
+        if va.as_usize() < USER_IMG_BASE {
+            panic!("Virtual address given to UserPageTable::alloc() is less than the image base");
+        }
+
+        let (l2_index, l3_index) = PageTable::locate(va);
+
+        // CHECK: is this reall fine? if it is, then what's the point of L2 table?
+        let mut l3_entry = self.0.l3[l2_index].entries[l3_index];
+
+        if l3_entry.is_valid() {
+            panic!("Virtual address given to UserPageTable::alloc() alerady has a page allocated");
+        }
+
+        let perm = match _perm {
+            PagePerm::RW => USER_RW,
+            PagePerm::RO => USER_RO,
+            PagePerm::RWX => USER_RW
+        };
+
+        unsafe {
+            let phys_base = ALLOCATOR.alloc(Page::layout());
+            l3_entry.set_addr(phys_base as u64, perm, INNER_SHARE, NORMAL_MEM); //this sets valid as well
+            core::slice::from_raw_parts_mut(phys_base, PAGE_SIZE)
+        }
     }
 }
 
@@ -214,4 +352,26 @@ impl DerefMut for UserPageTable {
 }
 
 // FIXME: Implement `Drop` for `UserPageTable`.
-// FIXME: Implement `fmt::Debug` as you need.
+impl Drop for UserPageTable {
+    fn drop(&mut self) {
+        //for l3_table in l3.iter_mut() {
+            //for entry in l3_table.iter_mut() {
+                //if entry.is_valid() {
+                    //ALLOCATOR.dealloc(entry.get_addr(), Page::layout());
+                    //entry.set_invalid();
+                //}
+            //}
+        //}
+        for entry in self.0.into_iter() {
+            if entry.is_valid() {
+                unsafe { ALLOCATOR.dealloc(entry.get_addr() as *mut u8, Page::layout()); }
+            }
+        }
+    }
+}
+
+impl fmt::Debug for UserPageTable {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "userpagetable debug")
+    }
+}

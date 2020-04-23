@@ -117,3 +117,25 @@ macro_rules! impl_for {
 
 impl_for!(VirtualAddr);
 impl_for!(PhysicalAddr);
+
+impl VirtualAddr {
+    pub fn is_aligned(&self, page_size: usize) -> bool {
+        self.0 % page_size == 0
+    }
+
+    pub fn l2_index(&self) -> usize {
+        let mask = ((1 << 13) - 1) << 29;
+        (self.0 & mask) >> 29
+    }
+
+    pub fn l3_index(&self) -> usize {
+        let mask = ((1 << 13) - 1) << 16;
+        (self.0 & mask) >> 16
+    }
+
+    //pub fn is_user(&self) -> bool {
+        //let mask = ((1 << 22) - 1) << 42;
+        //let new = self.0 & mask;
+        //mask == new
+    //}
+}
