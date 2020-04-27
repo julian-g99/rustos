@@ -50,7 +50,7 @@ pub extern "C" fn handle_exception(info: Info, esr: u32, tf: &mut TrapFrame) {
     //unimplemented!("handle_exception");
     if info.kind == Kind::Synchronous {
         let syndrome = Syndrome::from(esr);
-        //kprintln!("syndrom: {:?}", syndrome);
+        //kprintln!("syndrome: {:?}", syndrome);
         match syndrome {
             Syndrome::Brk(val) => {
                 shell("oh no something is wrong: ");
@@ -58,10 +58,10 @@ pub extern "C" fn handle_exception(info: Info, esr: u32, tf: &mut TrapFrame) {
                 tf.set_elr(prev_elr + 4);
             },
             Syndrome::Svc(n) => {
-                //kprintln!("hello it be me");
+                //kprintln!("svc exception");
                 let mut temp: u64;
                 unsafe {asm!("mov $0, x0":"=r"(temp)::"x0":"volatile");}
-                kprintln!("temp: {}", temp);
+                //kprintln!("temp: {}", temp);
                 handle_syscall(n, tf);
                 let prev_elr = tf.get_elr();
                 tf.set_elr(prev_elr + 4);

@@ -124,13 +124,23 @@ impl VirtualAddr {
     }
 
     pub fn l2_index(&self) -> usize {
-        let mask = ((1 << 13) - 1) << 29;
+        //let mask = ((1 << 13) - 1) << 29;
+        let mask = 1 << 29;
         (self.0 & mask) >> 29
+        //let mask = (1 << 13) - 1;
+        //(self.0 >> 29) & mask
     }
 
     pub fn l3_index(&self) -> usize {
         let mask = ((1 << 13) - 1) << 16;
         (self.0 & mask) >> 16
+        //let mask = (1 << 13) - 1;
+        //(self.0 >> 16) & mask
+    }
+
+    pub fn get_offset(&self) -> usize {
+        let mask = (1 << 15) - 1;
+        self.0 & mask
     }
 
     //pub fn is_user(&self) -> bool {

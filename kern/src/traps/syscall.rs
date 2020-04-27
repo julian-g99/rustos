@@ -2,11 +2,14 @@ use alloc::boxed::Box;
 use core::time::Duration;
 use pi::timer::current_time;
 
-use crate::console::CONSOLE;
+use crate::console::{CONSOLE, kprint, kprintln};
 use crate::process::{State, Process};
 use crate::traps::TrapFrame;
 use crate::SCHEDULER;
 use kernel_api::*;
+
+const SLEEP: u16 = NR_SLEEP as u16;
+const WRITE: u16 = NR_WRITE as u16;
 
 /// Sleep for `ms` milliseconds.
 ///
@@ -17,7 +20,7 @@ use kernel_api::*;
 /// when `sleep` returned.
 pub fn sys_sleep(ms: u32, tf: &mut TrapFrame) {
     use crate::console::kprintln;
-    kprintln!("ms is: {}", ms);
+    //kprintln!("ms is: {}", ms);
 
     let end_time = current_time() + Duration::from_millis(ms as u64);
     let poll_fn = Box::new(move |proc: &mut Process| -> bool {
@@ -25,7 +28,7 @@ pub fn sys_sleep(ms: u32, tf: &mut TrapFrame) {
         if curr_time < end_time {
             return false;
         } else {
-            proc.context.set_x_register(7, 1);
+            proc.context.set_x_register(7, OsError::Ok as u64);
             proc.context.set_x_register(0, (curr_time - end_time).as_millis() as u64);
             return true;
         }
@@ -59,7 +62,13 @@ pub fn sys_exit(tf: &mut TrapFrame) {
 ///
 /// It only returns the usual status value.
 pub fn sys_write(b: u8, tf: &mut TrapFrame) {
-    unimplemented!("sys_write()");
+    let c = b as char;
+    if c.is_ascii() {
+        kprint!("{}", c);
+        tf.set_x_register(7, OsError::Ok as u64);
+    } else {
+        tf.set_x_register(7, OsError::InvalidArgument as u64);
+    }
 }
 
 /// Returns current process's ID.
@@ -76,18 +85,13 @@ pub fn handle_syscall(num: u16, tf: &mut TrapFrame) {
     use crate::console::kprintln;
     //unimplemented!("handle_syscall()")
     match num {
-        1 => {
-            let micros = tf.get_x_register(0) as u32;
-            //unsafe {
-            //
-                //asm!("mov $0, x0"
-                    //:"=r"(micros)
-                    //:
-                    //:"x0"
-                    //:"volatile");
-            //}
-            //kprintln!("micros: {}", micros);
-            sys_sleep(micros, tf);
+        SLEEP => {
+            let millis = tf.get_x_register(0) as u32;
+            sys_sleep(millis, tf);
+        },
+        WRITE => {
+            let input = tf.get_x_register(0) as u8;
+            sys_write(input, tf);
         },
         _ => {}
     }

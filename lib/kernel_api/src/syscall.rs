@@ -47,7 +47,18 @@ pub fn exit() -> ! {
 }
 
 pub fn write(b: u8) {
-    unimplemented!("write()");
+    let mut ecode: u64;
+
+    unsafe {
+        asm!("mov x0, $1
+              svc $2
+              mov $0, x7"
+              : "=r"(ecode)
+              : "r"(b as u64), "i"(NR_WRITE)
+              : "x0", "x7"
+              : "volatile");
+    }
+
 }
 
 pub fn getpid() -> u64 {

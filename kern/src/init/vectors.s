@@ -55,8 +55,8 @@ context_save:
 .global context_restore
 context_restore:
     ldp x20, x19, [SP], #16
-    msr TTBR0_EL1, x20
-    msr TTBR1_El1, x19
+    msr TTBR1_EL1, x20
+    msr TTBR0_El1, x19
 
     dsb ishst
     tlbi vmalle1
@@ -109,16 +109,16 @@ context_restore:
     .align 7
     stp     lr, xzr, [SP, #-16]!
     stp     x28, x29, [SP, #-16]!
-    
+
     mov     x29, \source
     movk    x29, \kind, LSL #16
     bl      context_save
-    
+
     ldp     x28, x29, [SP], #16
     ldp     lr, xzr, [SP], #16
     eret
 .endm
-    
+
 .align 11
 .global vectors
 vectors:

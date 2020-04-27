@@ -64,6 +64,8 @@ fn kmain() -> ! {
         ALLOCATOR.initialize();
         FILESYSTEM.initialize();
         IRQ.initialize();
+        VMM.initialize();
+        //VMM.setup();
         SCHEDULER.initialize();
         SCHEDULER.start();
     }

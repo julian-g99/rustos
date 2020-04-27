@@ -50,13 +50,11 @@ impl Sd {
     /// written the memory management unit (MMU).
     pub unsafe fn new() -> Result<Sd, io::Error> {
         //unimplemented!("Sd::new()")
-        unsafe {
-            match sd_init() {
-                0 => Ok(Sd),
-                -1 => ioerr!(TimedOut, "sd init timed out"),
-                -2 => ioerr!(Other, "failed to send command to SD controller"),
-                _ => ioerr!(Other, "Sd::new() got output that's neither 0, -1, nor -2")
-            }
+        match sd_init() {
+            0 => Ok(Sd),
+            -1 => ioerr!(TimedOut, "sd init timed out"),
+            -2 => ioerr!(Other, "failed to send command to SD controller"),
+            _ => ioerr!(Other, "Sd::new() got output that's neither 0, -1, nor -2")
         }
     }
 }

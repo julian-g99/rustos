@@ -75,5 +75,24 @@ impl TrapFrame {
     pub fn get_x_register(&self, index: usize) -> u64 {
         self.x_registers[index]
     }
-}
 
+    pub fn set_ttbr0(&mut self, val: u64) {
+        self.TTBR0 = val;
+    }
+
+    pub fn set_ttbr1(&mut self, val: u64) {
+        self.TTBR1 = val;
+    }
+
+    pub fn set_fiq(&mut self) {
+        self.spsr = set_bit(self.spsr, 6);
+    }
+
+    pub fn set_serror_interrupt(&mut self) {
+        self.spsr = set_bit(self.spsr, 8);
+    }
+
+    pub fn set_d(&mut self) {
+        self.spsr = set_bit(self.spsr, 9);
+    }
+}
