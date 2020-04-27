@@ -46,14 +46,20 @@ pub fn sys_sleep(ms: u32, tf: &mut TrapFrame) {
 ///  - current time as seconds
 ///  - fractional part of the current time, in nanoseconds.
 pub fn sys_time(tf: &mut TrapFrame) {
-    unimplemented!("sys_time()");
+    let curr_time = current_time();
+    let full_secs = curr_time.as_secs();
+    let nanos = (curr_time - Duration::from_secs(full_secs)).as_nanos();
+    tf.set_x_register(7, OsError::Ok as u64);
+    tf.set_x_register(0, full_secs as u64);
+    tf.set_x_register(1, nanos as u64);
 }
 
 /// Kills current process.
 ///
 /// This system call does not take paramer and does not return any value.
 pub fn sys_exit(tf: &mut TrapFrame) {
-    unimplemented!("sys_exit()");
+    SCHEDULER.kill(tf);
+    tf.set_x_register(7, OsError::Ok as u64);
 }
 
 /// Write to console.
@@ -78,7 +84,9 @@ pub fn sys_write(b: u8, tf: &mut TrapFrame) {
 /// In addition to the usual status value, this system call returns a
 /// parameter: the current process's ID.
 pub fn sys_getpid(tf: &mut TrapFrame) {
-    unimplemented!("sys_getpid()");
+    let pid = tf.get_tpidr();
+    tf.set_x_register(0, pid);
+    tf.set_x_register(7, OsError::Ok as u64);
 }
 
 pub fn handle_syscall(num: u16, tf: &mut TrapFrame) {
