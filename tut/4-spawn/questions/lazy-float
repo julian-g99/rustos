@@ -1,0 +1,3 @@
+We can have add an instruction that uses one of these register so that if it traps we just skip over the saving and restoring of the floating point registers.
+
+If this trap occurs, then we know that FP is not enabled and then we can modify the elr so that we move to restore the other registers by skipping over the instructions (through incrementing the elr). This, however, seems error prone and not the best design choice, but I can't think of anything better. The upside is that we don't need to change the trapframe at all.

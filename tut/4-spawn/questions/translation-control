@@ -1,0 +1,1 @@
+In our implementation, we only need one bit for Level 2 index, since we only have two L3 tables. This also means that we are using the 30-63 all for TTBR select.

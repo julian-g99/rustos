@@ -1,0 +1,1 @@
+It can raise an exception when trying to access more momory so that the kernel can give more space to the stack.

@@ -1,0 +1,1 @@
+When processes are waiting, it's usually because it needs something external from a timer or I/O, in which case when this is over an event will occur, signaling the cpu to exit the low power mode.

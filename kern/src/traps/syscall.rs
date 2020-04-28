@@ -10,6 +10,9 @@ use kernel_api::*;
 
 const SLEEP: u16 = NR_SLEEP as u16;
 const WRITE: u16 = NR_WRITE as u16;
+const GETPID: u16 = NR_GETPID as u16;
+const TIME: u16 = NR_TIME as u16;
+const EXIT: u16 = NR_EXIT as u16;
 
 /// Sleep for `ms` milliseconds.
 ///
@@ -58,6 +61,7 @@ pub fn sys_time(tf: &mut TrapFrame) {
 ///
 /// This system call does not take paramer and does not return any value.
 pub fn sys_exit(tf: &mut TrapFrame) {
+    kprintln!("sys exit");
     SCHEDULER.kill(tf);
     tf.set_x_register(7, OsError::Ok as u64);
 }
@@ -101,6 +105,15 @@ pub fn handle_syscall(num: u16, tf: &mut TrapFrame) {
             let input = tf.get_x_register(0) as u8;
             sys_write(input, tf);
         },
+        GETPID => {
+            sys_getpid(tf);
+        },
+        TIME => {
+            sys_time(tf);
+        },
+        EXIT => {
+            sys_exit(tf);
+        }
         _ => {}
     }
 }

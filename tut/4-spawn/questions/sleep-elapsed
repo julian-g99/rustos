@@ -1,0 +1,3 @@
+The situation that I can imagine where the values would be different is if there was some additional exception that occured (after exceptions are reenabled). If that's the only scenario, I would think the possbility of this happening is not very high.
+
+I think the difference in values probably won't happen due to some hardware inconsistency since clock cycles should be consistent, and the end of cycle vs beginning of cycle should be consistent as well.

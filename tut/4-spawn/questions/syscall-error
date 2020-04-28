@@ -1,0 +1,3 @@
+The advantage of our design is that it's more clear and comparmentalized. We always know exactly where the error is (x7) and this also allows it a wider range of values that the error can take on (although it's very unlikey that we have so many errors that the entire range of negative numbers won't be enough). It also allows syscalls to return negative values through the first return value (although I'm not sure how often this is actually needed). The main advatange, therefore, is the clarity.
+
+The disadvantage is that we do use one extra register for error when we don't need to.

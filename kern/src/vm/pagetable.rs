@@ -381,14 +381,6 @@ impl DerefMut for UserPageTable {
 // FIXME: Implement `Drop` for `UserPageTable`.
 impl Drop for UserPageTable {
     fn drop(&mut self) {
-        //for l3_table in l3.iter_mut() {
-            //for entry in l3_table.iter_mut() {
-                //if entry.is_valid() {
-                    //ALLOCATOR.dealloc(entry.get_addr(), Page::layout());
-                    //entry.set_invalid();
-                //}
-            //}
-        //}
         for entry in self.0.into_iter() {
             if entry.is_valid() {
                 unsafe { ALLOCATOR.dealloc(entry.get_addr() as *mut u8, Page::layout()); }

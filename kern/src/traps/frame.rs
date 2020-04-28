@@ -26,13 +26,12 @@ fn clear_bit(val: u64, bit: u8) -> u64 {
 }
 
 impl TrapFrame {
-    //pub fn new(elr: u64, spsr: u64, sp: u64, tpidr: u64,
-        //q_registers: [u128; 32], x_registers: [u64; 31],
-        //xzr: u64) -> Self {
-        //TrapFrame{ elr, spsr, sp, tpidr, q_registers, x_registers, xzr }
-    //}
     pub fn get_elr(&self) -> u64 {
         self.elr
+    }
+
+    pub fn get_spsr(&self) -> u64 {
+        self.spsr
     }
 
     pub fn set_elr(&mut self, val: u64) {
@@ -64,7 +63,7 @@ impl TrapFrame {
         self.tpidr = val;
     }
 
-    pub fn get_tpidr(&mut self) -> u64 {
+    pub fn get_tpidr(&self) -> u64 {
         self.tpidr
     }
 
@@ -82,6 +81,14 @@ impl TrapFrame {
 
     pub fn set_ttbr1(&mut self, val: u64) {
         self.TTBR1 = val;
+    }
+
+    pub fn get_ttbr1(&self) -> u64 {
+        self.TTBR1
+    }
+
+    pub fn get_ttbr0(&self) -> u64 {
+        self.TTBR0
     }
 
     pub fn set_fiq(&mut self) {

@@ -1,0 +1,1 @@
+There are multiple reasons why we might switch a process out. It's possible that it's currently blocking on I/O (if that's the paradigm that we are using), in which case there might be another state that specifically encodes this. The scheduler would have no way of knowing that.

@@ -8,7 +8,7 @@ use pi::timer::tick_in;
 use crate::IRQ;
 use pi::interrupt::{Interrupt, Controller};
 
-use crate::console::kprintln;
+use crate::console::{kprintln, kprint};
 
 use crate::mutex::Mutex;
 use crate::param::{PAGE_MASK, PAGE_SIZE, TICK, USER_IMG_BASE};
@@ -49,7 +49,8 @@ impl GlobalScheduler {
     /// the documentation on `Scheduler::schedule_out()` and `Scheduler::switch_to()`.
     pub fn switch(&self, new_state: State, tf: &mut TrapFrame) -> Id {
         self.critical(|scheduler| scheduler.schedule_out(new_state, tf));
-        self.switch_to(tf)
+        let ret = self.switch_to(tf);
+        ret
     }
 
     pub fn switch_to(&self, tf: &mut TrapFrame) -> Id {
@@ -77,66 +78,41 @@ impl GlobalScheduler {
         controller.enable(Interrupt::Timer1);
         tick_in(TICK);
         IRQ.register(Interrupt::Timer1, Box::new(|frame| {
-            kprintln!("tick");
             tick_in(TICK);
             SCHEDULER.switch(State::Ready, frame);
         }));
-
-
-        //let mut process1 = Process::new().expect("not enough memory to start process in GlobalScheduler::new()");
-        //process1.context.set_ttbr0(VMM.get_baddr().as_u64());
-        //process1.context.set_ttbr1(process1.vmap.get_baddr().as_u64());
-        //process1.context.set_sp(process1.stack.top().as_u64());
-        //process1.context.set_elr(USER_IMG_BASE as u64);
-        //process1.context.set_aarch64();
-        //process1.context.set_el0();
-        //process1.context.unmask_irq();
-        //self.test_phase_3(&mut process1);
-
-        //let mut process2 = Process::new().expect("not enough memory to start process in GlobalScheduler::new()");
-        //process2.context.set_ttbr0(VMM.get_baddr().as_u64());
-        //process2.context.set_ttbr1(process2.vmap.get_baddr().as_u64());
-        //process2.context.set_sp(process2.stack.top().as_u64());
-        //process2.context.set_elr(USER_IMG_BASE as u64);
-        //process2.context.set_aarch64();
-        //process2.context.set_el0();
-        //process2.context.unmask_irq();
-        //self.test_phase_3(&mut process2);
-
-        //self.add(process1);
-        //self.add(process2);
-
 
         //let process_id = SCHEDULER.switch_to(&mut trap_frame);
         let mut tf = Box::new(TrapFrame::default());
         self.switch_to(tf.as_mut());
         unsafe {
-            //asm!("mov sp, $0
-                  //bl context_restore
-
-                  //adr x0, _start
-                  //mov sp, x0
-
-                  //mov lr, xzr
-                  //eret"
-                  //:
-                  //:"r"(tf)
-                  //:"x0"
-                  //:"volatile");
             asm!("mov sp, $0
                   bl context_restore
 
-                  mov x0, sp
-                  add x0, x0, $1
+                  adr x0, _start
                   mov sp, x0
 
                   mov lr, xzr
-                  mov x0, xzr
                   eret"
                   :
-                  :"r"(tf), "r"(PAGE_SIZE)
+                  :"r"(tf)
                   :"x0"
                   :"volatile");
+            //asm!("mov sp, $0
+                  //bl context_restore
+
+                  //mov x0, sp
+                  //and x0, x0, $2
+                  //add x0, x0, $1
+                  //mov sp, x0
+
+                  //mov lr, xzr
+                  //mov x0, xzr
+                  //eret"
+                  //:
+                  //:"r"(tf), "r"(PAGE_SIZE), "r"(PAGE_MASK)
+                  //:"x0"
+                  //:"volatile");
         }
 
         loop {}
@@ -151,8 +127,17 @@ impl GlobalScheduler {
         let proc1 = Process::load(PathBuf::from("/fib.bin")).unwrap();
         self.add(proc1);
 
-        //let proc2 = Process::load(PathBuf::from("/fib.bin")).unwrap();
-        //self.add(proc2);
+        let proc2 = Process::load(PathBuf::from("/fib.bin")).unwrap();
+        self.add(proc2);
+
+        let proc3 = Process::load(PathBuf::from("/fib.bin")).unwrap();
+        self.add(proc3);
+
+        let proc4 = Process::load(PathBuf::from("/fib.bin")).unwrap();
+        self.add(proc4);
+
+        let proc5 = Process::load(PathBuf::from("/fib.bin")).unwrap();
+        self.add(proc5);
     }
 
 
@@ -172,12 +157,6 @@ impl GlobalScheduler {
 
         page[0..24].copy_from_slice(text);
 
-        //unsafe {
-            //kprintln!("test_user_process values: {:?}", text);
-            ////kprintln!("virtual values: {:?}", proc.vmap.page_value(VirtualAddr::from(USER_IMG_BASE), 24));
-        //}
-        //kprintln!("test_use_process actual address: {}", test_user_process as u64);
-        //kprintln!("test_user_process computed address: {}", proc.vmap.get_physical_address(VirtualAddr::from(USER_IMG_BASE)));
     }
 }
 
@@ -192,7 +171,7 @@ impl Scheduler {
     fn new() -> Scheduler {
         let processes = VecDeque::new();
         let last_id = None;
-        
+
         Self{ processes, last_id }
     }
 
@@ -204,20 +183,15 @@ impl Scheduler {
     /// It is the caller's responsibility to ensure that the first time `switch`
     /// is called, that process is executing on the CPU.
     fn add(&mut self, mut process: Process) -> Option<Id> {
-        if self.last_id.is_none() {
-            self.last_id = Some(0);
-            self.processes.push_back(process);
-            return self.last_id;
-        }
-        let id = match self.last_id.unwrap().checked_add(1) {
-            None => return None,
-            Some(v) => v
+        let id = match self.last_id {
+            None => {0},
+            Some(v) => v.checked_add(1)?
         };
 
         process.context.set_tpidr(id);
         self.processes.push_back(process);
-        //kprintln!("length: {}", self.processes.len());
-        Some(id)
+        self.last_id = Some(id);
+        self.last_id
     }
 
     /// Finds the currently running process, sets the current process's state
@@ -228,14 +202,23 @@ impl Scheduler {
     /// If the `processes` queue is empty or there is no current process,
     /// returns `false`. Otherwise, returns `true`.
     fn schedule_out(&mut self, new_state: State, tf: &mut TrapFrame) -> bool {
-        let mut curr_proc = match self.processes.pop_front() {
-            None => return false,
-            Some(p) => p
-        };
-        curr_proc.state = new_state;
-        curr_proc.context = Box::new(*tf);
+        let mut del_idx = self.processes.len();
+        for i in 0..self.processes.len() {
+            let proc = self.processes.get(i).expect("can't get process");
+            if proc.context.get_tpidr() == tf.get_tpidr() {
+                del_idx = i;
+                break;
+            }
+        }
 
-        self.processes.push_back(curr_proc);
+        if del_idx == self.processes.len() {
+            return false;
+        }
+
+        let mut proc = self.processes.remove(del_idx).expect("failed to remove");
+        proc.state = new_state;
+        *proc.context = *tf;
+        self.processes.push_back(proc);
         return true;
     }
 
@@ -247,26 +230,28 @@ impl Scheduler {
     /// If there is no process to switch to, returns `None`. Otherwise, returns
     /// `Some` of the next process`s process ID.
     fn switch_to(&mut self, tf: &mut TrapFrame) -> Option<Id> {
-        use State::*;
-        //kprintln!("{:?}", self.processes);
-        for i in 0..self.processes.len() {
-            let mut curr = match self.processes.remove(i) {
-                None => return None,
-                Some(p) => p
-            };
+        // print scheduling queue
 
-            if curr.is_ready() {
-                let id = curr.context.get_tpidr();
-                *tf = *curr.context;
-                curr.state = State::Running;
-                self.processes.push_front(curr);
-                return Some(id);
-            } else {
-                self.processes.insert(i, curr);
+
+        let mut del_idx = self.processes.len();
+        for i in 0..self.processes.len() {
+            let proc = self.processes.get_mut(i).expect("can't get proc"); //is ready needs mut
+            if proc.is_ready() {
+                del_idx = i;
+                break;
             }
         }
 
-        return None;
+        if del_idx == self.processes.len() {
+            return None;
+        }
+
+        let mut proc = self.processes.remove(del_idx).expect("failed to remove");
+        proc.state = State::Running;
+        let id = proc.context.get_tpidr();
+        *tf = *proc.context;
+        self.processes.push_front(proc);
+        return Some(id);
     }
 
     /// Kills currently running process by scheduling out the current process
@@ -329,4 +314,3 @@ pub extern "C" fn  test_user_process() -> ! {
         }
     }
 }
-

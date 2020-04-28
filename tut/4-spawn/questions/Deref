@@ -1,0 +1,1 @@
+These traits return a reference of the target type. The reason why we need is so that UserPageTable and KernPageTable can easily get a reference of the PageTable struct within, since these two are basically wrappers.

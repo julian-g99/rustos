@@ -50,28 +50,18 @@ pub extern "C" fn handle_exception(info: Info, esr: u32, tf: &mut TrapFrame) {
     //unimplemented!("handle_exception");
     if info.kind == Kind::Synchronous {
         let syndrome = Syndrome::from(esr);
-        //kprintln!("syndrome: {:?}", syndrome);
         match syndrome {
             Syndrome::Brk(val) => {
                 shell("oh no something is wrong: ");
                 let prev_elr = tf.get_elr();
-                tf.set_elr(prev_elr + 4);
+                tf.set_elr(prev_elr.checked_add(4).expect("elr add failed"));
             },
             Syndrome::Svc(n) => {
-                //kprintln!("svc exception");
                 let mut temp: u64;
                 unsafe {asm!("mov $0, x0":"=r"(temp)::"x0":"volatile");}
-                //kprintln!("temp: {}", temp);
                 handle_syscall(n, tf);
-                let prev_elr = tf.get_elr();
-                tf.set_elr(prev_elr + 4);
             },
             _ => {
-                let prev_elr = tf.get_elr();
-                tf.set_elr(prev_elr + 4);
-                //loop {
-                    //aarch64::nop();
-                //}
             }
         }
     } else if info.kind == Kind::Irq {
@@ -82,7 +72,5 @@ pub extern "C" fn handle_exception(info: Info, esr: u32, tf: &mut TrapFrame) {
                 IRQ.invoke(*i, tf);
             }
         }
-        //let prev_elr = tf.get_elr();
-        //tf.set_elr(prev_elr + 4);
     }
 }

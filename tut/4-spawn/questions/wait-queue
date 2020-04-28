@@ -1,0 +1,5 @@
+The advatange of this is that we can just scheduling the front of the ready queue and only look for tasks that are done waiting when there is nothing in the ready queue.
+
+This however can cause starvation where a process never gets any chance to execute, so maybe to address that we should check the waiting queue often too.
+
+The average task latency will probably be worse due to the starvation mentioned above, but the throughput will probably improve.

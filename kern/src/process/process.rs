@@ -105,40 +105,18 @@ impl Process {
             let page = process.vmap.alloc(process.curr_img, PagePerm::RW);
             read_so_far += file_entry.read(page)? as u64;
             process.curr_img += VirtualAddr::from(PAGE_SIZE);
+            if process.curr_img.as_u64() > Self::get_max_va().as_u64() {
+                panic!("virtual address too big");
+            }
         }
 
         Ok(process)
-
-        //match fs_entry.into_file() {
-            //None => {
-                //return Err(OsError::IoError);
-            //},
-            //Some(mut f) => {
-                //let mut buf = [0u8; PAGE_SIZE];
-                //let mut total = 0;
-                //let mut bytes_read = f.read(&mut buf).expect("failed to read"); // FIXME: parse this properly
-                //while bytes_read != 0 {
-                    //let vaddr = VirtualAddr::from(USER_IMG_BASE+total);
-                    ////if !vaddr.is_aligned(PAGE_SIZE) {
-                        ////panic!("vaddr is not aligned to page size");
-                    ////} else {
-                        ////panic!("is aligned");
-                    ////}
-                    //let mut page = process.vmap.alloc(vaddr, PagePerm::RWX);
-                    //page[..bytes_read].copy_from_slice(&buf[..bytes_read]);
-                    //bytes_read = f.read(&mut buf).expect("failed to read");
-
-                    //total += bytes_read;
-                //}
-            //}
-        //}
-
-        //Ok(process)
     }
 
     /// Returns the highest `VirtualAddr` that is supported by this system.
     pub fn get_max_va() -> VirtualAddr {
-        VirtualAddr::from(USER_IMG_BASE + USER_MAX_VM_SIZE - 1) //otherwise it would be 0
+        //VirtualAddr::from(USER_IMG_BASE + USER_MAX_VM_SIZE - 1) //otherwise it would be 0
+        VirtualAddr::from(USER_IMG_BASE) + VirtualAddr::from(USER_MAX_VM_SIZE) - VirtualAddr::from(1)
     }
 
     /// Returns the `VirtualAddr` represents the base address of the user
